@@ -6,6 +6,14 @@ import {
 } from 'recharts'
 
 function App() {
+  // --- ESTADOS DE SEGURIDAD Y SESIÓN ---
+  const [sesion, setSesion] = useState(null)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [cargandoAuth, setCargandoAuth] = useState(true)
+  const [errorAuth, setErrorAuth] = useState(null)
+
+  // --- ESTADOS DE APLICACIÓN ---
   const [proyectos, setProyectos] = useState([])
   const [cargando, setCargando] = useState(true)
   const [errorSistema, setErrorSistema] = useState(null)
@@ -14,16 +22,49 @@ function App() {
   const [fechaReferencia, setFechaReferencia] = useState(new Date())
   const [filtroTiempo, setFiltroTiempo] = useState("Todos")
 
+  // --- MOTOR DE AUTENTICACIÓN ---
   useEffect(() => {
-    obtenerProyectos()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSesion(session)
+      setCargandoAuth(false)
+      if (session) obtenerProyectos()
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSesion(session)
+      if (session) {
+        obtenerProyectos()
+      } else {
+        setProyectos([]) // Limpia datos de memoria al cerrar sesión
+      }
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
+  const iniciarSesion = async (e) => {
+    e.preventDefault()
+    setCargandoAuth(true)
+    setErrorAuth(null)
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) setErrorAuth("Credenciales inválidas. Acceso denegado.")
+    setCargandoAuth(false)
+  }
+
+  const cerrarSesion = async () => {
+    const confirmar = window.confirm("¿Estás seguro de cerrar sesión y bloquear el panel?")
+    if (confirmar) {
+      await supabase.auth.signOut()
+    }
+  }
+
+  // --- MOTOR DE INGESTA DE DATOS ---
   async function obtenerProyectos() {
+    setCargando(true)
     try {
       const { data, error } = await supabase
         .from('proyectos_main')
         .select('*, detalle_eventos(*), finanzas_proyectos(*)')
-      
       if (error) throw error; 
       setProyectos(data || [])
     } catch (err) {
@@ -34,6 +75,50 @@ function App() {
     }
   }
 
+  // --- INTERFAZ: PANTALLA DE BLOQUEO (LOGIN) ---
+  if (cargandoAuth) {
+    return <div className="flex h-screen bg-[#09090b] items-center justify-center text-gray-500 text-sm">Autenticando escudo defensivo...</div>
+  }
+
+  if (!sesion) {
+    return (
+      <div className="flex h-screen bg-[#09090b] items-center justify-center p-6 selection:bg-blue-500/30">
+        <div className="bg-[#121214] border border-gray-800/60 p-8 rounded-xl max-w-sm w-full shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-emerald-500"></div>
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center shadow-lg">
+              <div className="w-3 h-3 bg-white rounded-full"></div>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white tracking-wide">CINERGIA OS</h1>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Acceso Restringido</p>
+            </div>
+          </div>
+          <form onSubmit={iniciarSesion} className="space-y-5">
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">Identidad (Email)</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="operaciones@cinergia.com" className="w-full bg-[#09090b] border border-gray-800 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all placeholder:text-gray-700" />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">Llave Criptográfica</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="w-full bg-[#09090b] border border-gray-800 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all placeholder:text-gray-700" />
+            </div>
+            {errorAuth && (
+              <div className="bg-red-500/10 border border-red-900/50 p-2 rounded flex items-start gap-2">
+                <svg className="w-4 h-4 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <p className="text-xs text-red-400 font-medium">{errorAuth}</p>
+              </div>
+            )}
+            <button type="submit" disabled={cargandoAuth} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-md text-sm transition-colors mt-2 shadow-sm">
+              Desbloquear Mando
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
+  // --- INTERFAZ: FALLO CRÍTICO DE SISTEMA ---
   if (errorSistema) {
     return (
       <div className="flex h-screen bg-[#09090b] text-gray-300 items-center justify-center p-6">
@@ -45,7 +130,7 @@ function App() {
             <h2 className="text-xl font-bold text-white">Interrupción del Servicio</h2>
           </div>
           <p className="text-sm text-gray-400 mb-6 leading-relaxed">
-            El Centro de Mando no pudo establecer conexión con el motor de base de datos. El sistema ha sido bloqueado por seguridad.
+            El Centro de Mando no pudo establecer conexión con el motor de base de datos.
           </p>
           <div className="bg-[#09090b] p-4 rounded-md border border-gray-800 mb-6 font-mono text-xs text-red-400 overflow-hidden text-ellipsis">
             {errorSistema}
@@ -58,12 +143,11 @@ function App() {
     )
   }
 
-  // --- MOTOR DE FILTRADO MAESTRO ---
+  // --- MOTOR DE FILTRADO Y TRANSFORMACIÓN ---
   const proyectosFiltrados = proyectos.filter(p => {
     const textoValido = p?.nombre_proyecto?.toLowerCase().includes(busqueda.toLowerCase()) || 
                         p?.id_proyecto?.toLowerCase().includes(busqueda.toLowerCase());
     if (!textoValido) return false;
-
     if (!p?.fecha_lanzamiento) return true; 
     
     const fechaProyecto = new Date(p.fecha_lanzamiento + 'T00:00:00');
@@ -81,15 +165,12 @@ function App() {
     return true;
   });
 
-  // --- MOTOR DE TRANSFORMACIÓN (Limpio y conectado) ---
   const totalProyectos = proyectosFiltrados.length;
   const enEjecucion = proyectosFiltrados.filter(p => p?.estado_flujo === 'En Ejecución').length; 
-  
   const aforoTotal = proyectosFiltrados.reduce((acc, p) => {
     const evento = p?.detalle_eventos?.[0]; 
     return acc + (evento?.capacidad_max_aforo ? Number(evento.capacidad_max_aforo) : 0);
   }, 0);
-
   const finalizados = proyectosFiltrados.filter(p => p?.estado_flujo === 'Finalizado').length;
   const tasaEficiencia = totalProyectos > 0 ? Math.round((finalizados / totalProyectos) * 100) : 0;
   
@@ -101,7 +182,6 @@ function App() {
   const datosPipeline = Object.keys(conteoEstados).map(key => ({ estado: key.replace('_', ' '), cantidad: conteoEstados[key] }));
 
   const nombresMeses = { '01':'Ene', '02':'Feb', '03':'Mar', '04':'Abr', '05':'May', '06':'Jun', '07':'Jul', '08':'Ago', '09':'Sep', '10':'Oct', '11':'Nov', '12':'Dic' };
-  
   const conteoMeses = proyectosFiltrados.reduce((acc, p) => {
     if (p?.fecha_lanzamiento) {
       const mesNum = p.fecha_lanzamiento.substring(5, 7);
@@ -110,7 +190,6 @@ function App() {
     }
     return acc;
   }, {});
-
   const ordenMeses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
   const datosCronograma = Object.keys(conteoMeses)
     .sort((a, b) => ordenMeses.indexOf(a) - ordenMeses.indexOf(b))
@@ -118,29 +197,24 @@ function App() {
 
   const coloresPipeline = { 'Ideacion': '#6b7280', 'Planificacion': '#f59e0b', 'En Ejecucion': '#3b82f6', 'Finalizado': '#10b981' };
 
-  // --- LÓGICA DE CALENDARIO ---
   const diasSemanaPeru = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
   const mesActual = fechaReferencia.getMonth();
   const anioActual = fechaReferencia.getFullYear();
-  
   const obtenerDiasMes = (mes, anio) => {
     const primerDia = new Date(anio, mes, 1);
     const ultimoDia = new Date(anio, mes + 1, 0);
     let diaSemanaPrimerDia = primerDia.getDay() - 1;
     if (diaSemanaPrimerDia === -1) diaSemanaPrimerDia = 6; 
-    
     const dias = [];
     for (let i = 0; i < diaSemanaPrimerDia; i++) dias.push(null); 
     for (let i = 1; i <= ultimoDia.getDate(); i++) {
-      const fechaStr = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-      dias.push({ dia: i, fechaCompleta: fechaStr });
+      dias.push({ dia: i, fechaCompleta: `${anio}-${String(mes + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}` });
     }
     return dias;
   };
   const diasCalendario = obtenerDiasMes(mesActual, anioActual);
   const nombreMesPeru = new Intl.DateTimeFormat('es-PE', { month: 'long' }).format(fechaReferencia);
 
-  // --- LÓGICA DE INTERACTIVIDAD: EXPORTACIÓN CSV ---
   const exportarDatosCSV = () => {
     if (!proyectosFiltrados || proyectosFiltrados.length === 0) {
       alert("No hay proyectos en pantalla para exportar.");
@@ -153,19 +227,18 @@ function App() {
     });
     const contenidoCSV = [cabeceras.join(","), ...filas].join("\n");
     const blob = new Blob([contenidoCSV], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", url);
+    link.setAttribute("href", URL.createObjectURL(blob));
     link.setAttribute("download", `Operaciones_Cinergia_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  // --- INTERFAZ: PANEL CENTRAL ---
   return (
     <div className="flex h-screen bg-[#09090b] text-gray-300 font-sans overflow-hidden selection:bg-blue-500/30">
       
-      {/* SIDEBAR */}
       <aside className="w-64 bg-[#09090b] border-r border-gray-800/60 hidden md:flex flex-col z-20 relative">
         <div className="h-16 flex items-center px-6 border-b border-gray-800/60">
           <div className="w-6 h-6 bg-blue-600 rounded mr-3 flex items-center justify-center">
@@ -189,9 +262,7 @@ function App() {
         </nav>
       </aside>
 
-      {/* ÁREA CENTRAL */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden bg-[#09090b]">
-        
         <header className="h-16 border-b border-gray-800/60 flex items-center px-8 justify-between bg-[#09090b]/80 backdrop-blur-md sticky top-0 z-10">
           <div className="flex-1 max-w-md relative">
             <svg className="w-4 h-4 absolute left-3 top-2.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
@@ -199,23 +270,18 @@ function App() {
           </div>
           
           <div className="flex items-center gap-4">
-            <button className="text-gray-400 hover:text-white transition-colors relative">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-              <span className="absolute top-0 right-0 w-2 h-2 bg-blue-500 rounded-full border border-[#09090b]"></span>
-            </button>
             <div className="h-5 w-px bg-gray-800"></div>
-            <div className="flex items-center gap-2 cursor-pointer group">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-emerald-500 flex items-center justify-center text-white text-[10px] font-bold shadow-sm">
-                C
+            <button onClick={cerrarSesion} title="Cerrar Sesión" className="flex items-center gap-2 cursor-pointer group hover:bg-red-500/10 p-1.5 rounded-md transition-colors border border-transparent hover:border-red-900/50">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-emerald-500 flex items-center justify-center text-white text-[10px] font-bold shadow-sm group-hover:from-red-600 group-hover:to-red-500">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
               </div>
-              <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Directiva PE</span>
-            </div>
+              <span className="text-sm font-medium text-gray-300 group-hover:text-red-400 transition-colors">Desconectar</span>
+            </button>
           </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-8">
           
-          {/* VISTA 1: PORTAFOLIO GENERAL */}
           {vistaActiva === "general" && (
             <div className="animate-in fade-in duration-300">
               <div className="mb-6">
@@ -237,9 +303,7 @@ function App() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 mb-4">
-                        <span className="px-2 py-0.5 bg-[#18181b] text-gray-300 text-[10px] font-medium rounded-md border border-gray-800">
-                          {proyecto.estado_flujo}
-                        </span>
+                        <span className="px-2 py-0.5 bg-[#18181b] text-gray-300 text-[10px] font-medium rounded-md border border-gray-800">{proyecto.estado_flujo}</span>
                       </div>
                       <div className="mt-auto pt-4 border-t border-gray-800/50 flex justify-between items-center">
                         <div className="flex flex-col">
@@ -255,7 +319,6 @@ function App() {
                           </a>
                         ) : (
                           <span className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-gray-500 text-xs font-medium rounded-md border border-gray-800 cursor-not-allowed">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                             Pendiente
                           </span>
                         )}
@@ -267,7 +330,6 @@ function App() {
             </div>
           )}
 
-          {/* VISTA 2: RENDIMIENTO */}
           {vistaActiva === "analitica" && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
@@ -275,31 +337,14 @@ function App() {
                   <h1 className="text-2xl font-bold text-white tracking-tight">Centro de Mando Cinergia</h1>
                   <p className="text-sm text-gray-500 mt-1">Métricas operativas y flujo de trabajo estructural.</p>
                 </div>
-                
                 <div className="flex items-center gap-3">
                   <div className="flex items-center bg-[#121214] border border-gray-800 rounded-md p-1">
-                    <button 
-                      onClick={() => setFiltroTiempo("30D")}
-                      className={`px-3 py-1 text-xs font-medium rounded shadow-sm transition-all ${filtroTiempo === '30D' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                    >
-                      30D
-                    </button>
-                    <button 
-                      onClick={() => setFiltroTiempo("YTD")}
-                      className={`px-3 py-1 text-xs font-medium rounded shadow-sm transition-all ${filtroTiempo === 'YTD' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                    >
-                      YTD
-                    </button>
-                    <button 
-                      onClick={() => setFiltroTiempo("Todos")}
-                      className={`px-3 py-1 text-xs font-medium rounded shadow-sm transition-all ${filtroTiempo === 'Todos' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                    >
-                      Todos
-                    </button>
+                    <button onClick={() => setFiltroTiempo("30D")} className={`px-3 py-1 text-xs font-medium rounded shadow-sm transition-all ${filtroTiempo === '30D' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}>30D</button>
+                    <button onClick={() => setFiltroTiempo("YTD")} className={`px-3 py-1 text-xs font-medium rounded shadow-sm transition-all ${filtroTiempo === 'YTD' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}>YTD</button>
+                    <button onClick={() => setFiltroTiempo("Todos")} className={`px-3 py-1 text-xs font-medium rounded shadow-sm transition-all ${filtroTiempo === 'Todos' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}>Todos</button>
                   </div>
                   <div className="h-6 w-px bg-gray-800"></div>
                   <button onClick={exportarDatosCSV} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition-colors shadow-sm">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                     Exportar CSV
                   </button>
                 </div>
@@ -307,36 +352,28 @@ function App() {
 
               <div className="flex flex-col xl:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-6">
-                  
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-[#121214] border border-gray-800/60 rounded-xl p-5 shadow-sm relative overflow-hidden">
                       <p className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold mb-1">Volumen</p>
                       <h3 className="text-3xl font-bold text-white">{totalProyectos}</h3>
-                      <p className="text-[10px] text-emerald-500 mt-2 font-medium bg-emerald-500/10 inline-block px-1.5 py-0.5 rounded border border-emerald-500/20">↑ 100% Cobertura</p>
                     </div>
                     <div className="bg-[#121214] border border-gray-800/60 rounded-xl p-5 shadow-sm relative overflow-hidden">
                       <p className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold mb-1">Operaciones Activas</p>
                       <h3 className="text-3xl font-bold text-blue-400">{enEjecucion}</h3>
-                      <p className="text-xs text-gray-500 mt-2">En ejecución directa</p>
                     </div>
                     <div className="bg-[#121214] border border-gray-800/60 rounded-xl p-5 shadow-sm relative overflow-hidden">
                       <p className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold mb-1">Aforo Logístico</p>
                       <h3 className="text-2xl font-bold text-white">{aforoTotal.toLocaleString()} pax</h3>
-                      <p className="text-xs text-gray-500 mt-2">Capacidad proyectada</p>
                     </div>
                     <div className="bg-[#121214] border border-gray-800/60 rounded-xl p-5 shadow-sm relative overflow-hidden">
                       <p className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold mb-1">Finalización</p>
                       <h3 className="text-2xl font-bold text-amber-400">{tasaEficiencia}%</h3>
-                      <p className="text-[10px] text-gray-400 mt-2 font-medium bg-gray-800 inline-block px-1.5 py-0.5 rounded border border-gray-700">Tasa de éxito</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-[#121214] border border-gray-800/60 rounded-xl p-6 shadow-sm">
-                      <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-gray-200 text-sm font-semibold">Carga de Lanzamientos</h3>
-                        <span className="text-[10px] text-gray-400 bg-gray-800 px-2 py-1 rounded border border-gray-700">Mensual</span>
-                      </div>
+                      <h3 className="text-gray-200 text-sm font-semibold mb-6">Carga de Lanzamientos</h3>
                       <div className="h-[220px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={datosCronograma} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -380,8 +417,8 @@ function App() {
                       <div className="relative border-l border-gray-800 ml-3 space-y-6">
                         <div className="relative pl-6">
                           <span className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-blue-500 ring-4 ring-[#121214]"></span>
-                          <p className="text-xs font-medium text-gray-300">Escudo Defensivo Activo</p>
-                          <p className="text-[11px] text-gray-500 mt-0.5">Optional Chaining en operaciones de Reducer.</p>
+                          <p className="text-xs font-medium text-gray-300">Auth de Supabase Activo</p>
+                          <p className="text-[11px] text-gray-500 mt-0.5">Barrera de seguridad operativa y monitoreando tokens de sesión.</p>
                         </div>
                       </div>
                     </div>
@@ -391,25 +428,17 @@ function App() {
             </div>
           )}
 
-          {/* VISTA 3: CALENDARIO */}
           {vistaActiva === "calendario" && (
             <div className="animate-in fade-in duration-300 h-full flex flex-col">
               <div className="mb-6 flex justify-between items-end">
                 <div>
                   <h1 className="text-2xl font-bold text-white tracking-tight capitalize">{nombreMesPeru} {anioActual}</h1>
-                  <p className="text-sm text-gray-500 mt-1">Cronograma de lanzamientos operativos. Horario Local (PET).</p>
                 </div>
                 <div className="flex gap-2">
-                  <button 
-                    onClick={() => setFechaReferencia(new Date(anioActual, mesActual - 1, 1))}
-                    className="p-2 bg-[#121214] border border-gray-800 rounded-md hover:bg-gray-800 transition-colors text-gray-400"
-                  >
+                  <button onClick={() => setFechaReferencia(new Date(anioActual, mesActual - 1, 1))} className="p-2 bg-[#121214] border border-gray-800 rounded-md hover:bg-gray-800 transition-colors text-gray-400">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
                   </button>
-                  <button 
-                    onClick={() => setFechaReferencia(new Date(anioActual, mesActual + 1, 1))}
-                    className="p-2 bg-[#121214] border border-gray-800 rounded-md hover:bg-gray-800 transition-colors text-gray-400"
-                  >
+                  <button onClick={() => setFechaReferencia(new Date(anioActual, mesActual + 1, 1))} className="p-2 bg-[#121214] border border-gray-800 rounded-md hover:bg-gray-800 transition-colors text-gray-400">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
                   </button>
                 </div>
@@ -418,18 +447,14 @@ function App() {
               <div className="flex-1 bg-[#121214] border border-gray-800/60 rounded-xl overflow-hidden flex flex-col shadow-sm">
                 <div className="grid grid-cols-7 border-b border-gray-800/60 bg-[#09090b]/50">
                   {diasSemanaPeru.map((dia, idx) => (
-                    <div key={idx} className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider border-r border-gray-800/30 last:border-0">
-                      {dia}
-                    </div>
+                    <div key={idx} className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider border-r border-gray-800/30 last:border-0">{dia}</div>
                   ))}
                 </div>
                 
                 <div className="grid grid-cols-7 flex-1 auto-rows-fr">
                   {diasCalendario.map((item, idx) => {
                     if (!item) return <div key={`empty-${idx}`} className="border-r border-b border-gray-800/30 bg-[#09090b]/20"></div>;
-                    
                     const proyectosDelDia = proyectosFiltrados.filter(p => p?.fecha_lanzamiento === item.fechaCompleta);
-                    
                     return (
                       <div key={idx} className="border-r border-b border-gray-800/30 p-2 relative hover:bg-gray-800/10 transition-colors min-h-[100px] flex flex-col">
                         <span className="text-sm font-medium text-gray-500 mb-2">{item.dia}</span>
