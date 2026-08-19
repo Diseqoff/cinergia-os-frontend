@@ -133,6 +133,41 @@ function App() {
   const diasCalendario = obtenerDiasMes(mesActual, anioActual);
   const nombreMesPeru = new Intl.DateTimeFormat('es-PE', { month: 'long' }).format(fechaReferencia);
 
+  // --- LÓGICA DE INTERACTIVIDAD: EXPORTACIÓN CSV ---
+  const exportarDatosCSV = () => {
+    if (!proyectosFiltrados || proyectosFiltrados.length === 0) {
+      alert("No hay proyectos en pantalla para exportar.");
+      return;
+    }
+
+    // 1. Definir cabeceras del archivo
+    const cabeceras = ["ID Proyecto", "Nombre", "Estado", "Fecha Lanzamiento", "Aforo Proyectado"];
+
+    // 2. Extraer y aplanar los datos de Supabase
+    const filas = proyectosFiltrados.map(p => {
+      const aforo = p?.detalle_eventos?.[0]?.capacidad_max_aforo || 0;
+      return [
+        p.id_proyecto,
+        `"${p.nombre_proyecto}"`, // Se envuelve en comillas por si el nombre tiene comas
+        p.estado_flujo,
+        p.fecha_lanzamiento || "Sin fecha",
+        aforo
+      ].join(",");
+    });
+
+    // 3. Ensamblar el archivo y forzar la descarga en el navegador
+    const contenidoCSV = [cabeceras.join(","), ...filas].join("\n");
+    const blob = new Blob([contenidoCSV], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Operaciones_Cinergia_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="flex h-screen bg-[#09090b] text-gray-300 font-sans overflow-hidden selection:bg-blue-500/30">
       
@@ -254,7 +289,7 @@ function App() {
                     <button className="px-3 py-1 text-xs font-medium text-gray-400 hover:text-white transition-colors">Todos</button>
                   </div>
                   <div className="h-6 w-px bg-gray-800"></div>
-                  <button className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition-colors shadow-sm">
+                  <button onClick={exportarDatosCSV} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition-colors shadow-sm">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                     Exportar CSV
                   </button>
