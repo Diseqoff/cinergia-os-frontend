@@ -356,18 +356,22 @@ function App() {
                     <div className="bg-[#121214] border border-gray-800/60 rounded-xl p-5 shadow-sm relative overflow-hidden">
                       <p className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold mb-1">Volumen</p>
                       <h3 className="text-3xl font-bold text-white">{totalProyectos}</h3>
+                      <p className="text-[10px] text-emerald-500 mt-2 font-medium bg-emerald-500/10 inline-block px-1.5 py-0.5 rounded border border-emerald-500/20">↑ 100% Cobertura</p>
                     </div>
                     <div className="bg-[#121214] border border-gray-800/60 rounded-xl p-5 shadow-sm relative overflow-hidden">
                       <p className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold mb-1">Operaciones Activas</p>
                       <h3 className="text-3xl font-bold text-blue-400">{enEjecucion}</h3>
+                      <p className="text-xs text-gray-500 mt-2">En ejecución directa</p>
                     </div>
                     <div className="bg-[#121214] border border-gray-800/60 rounded-xl p-5 shadow-sm relative overflow-hidden">
                       <p className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold mb-1">Aforo Logístico</p>
                       <h3 className="text-2xl font-bold text-white">{aforoTotal.toLocaleString()} pax</h3>
+                      <p className="text-xs text-gray-500 mt-2">Capacidad proyectada</p>
                     </div>
                     <div className="bg-[#121214] border border-gray-800/60 rounded-xl p-5 shadow-sm relative overflow-hidden">
                       <p className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold mb-1">Finalización</p>
                       <h3 className="text-2xl font-bold text-amber-400">{tasaEficiencia}%</h3>
+                      <p className="text-[10px] text-gray-400 mt-2 font-medium bg-gray-800 inline-block px-1.5 py-0.5 rounded border border-gray-700">Tasa de éxito</p>
                     </div>
                   </div>
 
@@ -380,7 +384,7 @@ function App() {
                             <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
                             <XAxis dataKey="mes" stroke="#e5e7eb" fontSize={11} tickLine={false} axisLine={false} />
                             <YAxis stroke="#e5e7eb" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                            <Tooltip cursor={{stroke: '#27272a', strokeWidth: 1}} contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '6px' }} />
+                            <Tooltip cursor={{stroke: '#27272a', strokeWidth: 1}} contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '6px' }} itemStyle={{ color: '#e5e7eb' }} />
                             <Line type="monotone" dataKey="lanzamientos" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3, fill: '#09090b', stroke: '#3b82f6', strokeWidth: 2 }} activeDot={{ r: 5, fill: '#3b82f6', stroke: '#fff' }} />
                           </LineChart>
                         </ResponsiveContainer>
@@ -393,7 +397,7 @@ function App() {
                           <BarChart data={datosPipeline} layout="vertical" margin={{ top: 0, right: 20, left: 40, bottom: 0 }}>
                             <XAxis type="number" hide />
                             <YAxis dataKey="estado" type="category" stroke="#e5e7eb" fontSize={11} tickLine={false} axisLine={false} />
-                            <Tooltip cursor={{fill: '#18181b'}} contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '6px' }} />
+                            <Tooltip cursor={{fill: '#18181b'}} contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '6px' }} itemStyle={{ color: '#e5e7eb' }} />
                             <Bar dataKey="cantidad" radius={[0, 4, 4, 0]} barSize={16}>
                               {datosPipeline.map((entry, index) => <Cell key={`cell-${index}`} fill={coloresPipeline[entry.estado] || '#3b82f6'} />)}
                             </Bar>
