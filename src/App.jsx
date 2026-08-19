@@ -2,30 +2,29 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-  PieChart, Pie, LineChart, Line, Legend
+  LineChart, Line
 } from 'recharts'
 
 function App() {
   const [proyectos, setProyectos] = useState([])
   const [cargando, setCargando] = useState(true)
-  const [errorSistema, setErrorSistema] = useState(null) // NUEVO: Estado de Error Defensivo
+  const [errorSistema, setErrorSistema] = useState(null)
   const [busqueda, setBusqueda] = useState("")
   const [vistaActiva, setVistaActiva] = useState("analitica") 
   const [fechaReferencia, setFechaReferencia] = useState(new Date())
+  const [filtroTiempo, setFiltroTiempo] = useState("Todos")
 
   useEffect(() => {
     obtenerProyectos()
   }, [])
 
-  // NUEVO: Manejo de Excepciones y Seguridad en la Conexión
   async function obtenerProyectos() {
     try {
       const { data, error } = await supabase
         .from('proyectos_main')
         .select('*, detalle_eventos(*), finanzas_proyectos(*)')
       
-      if (error) throw error; // Dispara el catch si Supabase rechaza la petición
-      
+      if (error) throw error; 
       setProyectos(data || [])
     } catch (err) {
       console.error("Fallo crítico en ingesta:", err);
@@ -35,7 +34,6 @@ function App() {
     }
   }
 
-  // Si hay error crítico, bloqueamos el renderizado de la UI y mostramos el escudo de defensa
   if (errorSistema) {
     return (
       <div className="flex h-screen bg-[#09090b] text-gray-300 items-center justify-center p-6">
@@ -60,25 +58,42 @@ function App() {
     )
   }
 
-  const proyectosFiltrados = proyectos.filter(p => 
-    p?.nombre_proyecto?.toLowerCase().includes(busqueda.toLowerCase()) || 
-    p?.id_proyecto?.toLowerCase().includes(busqueda.toLowerCase())
-  );
+  // --- MOTOR DE FILTRADO MAESTRO ---
+  const proyectosFiltrados = proyectos.filter(p => {
+    const textoValido = p?.nombre_proyecto?.toLowerCase().includes(busqueda.toLowerCase()) || 
+                        p?.id_proyecto?.toLowerCase().includes(busqueda.toLowerCase());
+    if (!textoValido) return false;
 
-  // --- MOTOR DE TRANSFORMACIÓN (Con Optional Chaining Defensivo ?.) ---
-  const totalProyectos = proyectos.length;
-  const enEjecucion = proyectos.filter(p => p?.estado_flujo === 'En Ejecución').length; 
+    if (!p?.fecha_lanzamiento) return true; 
+    
+    const fechaProyecto = new Date(p.fecha_lanzamiento + 'T00:00:00');
+    const hoy = new Date();
+
+    if (filtroTiempo === "30D") {
+      const limite30Dias = new Date();
+      limite30Dias.setDate(hoy.getDate() - 30);
+      return fechaProyecto >= limite30Dias && fechaProyecto <= hoy;
+    } 
+    if (filtroTiempo === "YTD") {
+      const inicioAño = new Date(hoy.getFullYear(), 0, 1);
+      return fechaProyecto >= inicioAño && fechaProyecto <= hoy;
+    }
+    return true;
+  });
+
+  // --- MOTOR DE TRANSFORMACIÓN (Limpio y conectado) ---
+  const totalProyectos = proyectosFiltrados.length;
+  const enEjecucion = proyectosFiltrados.filter(p => p?.estado_flujo === 'En Ejecución').length; 
   
-  // Seguridad: Si detalle_eventos viene nulo desde Python, no crashea, suma 0.
-  const aforoTotal = proyectos.reduce((acc, p) => {
+  const aforoTotal = proyectosFiltrados.reduce((acc, p) => {
     const evento = p?.detalle_eventos?.[0]; 
     return acc + (evento?.capacidad_max_aforo ? Number(evento.capacidad_max_aforo) : 0);
   }, 0);
 
-  const finalizados = proyectos.filter(p => p?.estado_flujo === 'Finalizado').length;
+  const finalizados = proyectosFiltrados.filter(p => p?.estado_flujo === 'Finalizado').length;
   const tasaEficiencia = totalProyectos > 0 ? Math.round((finalizados / totalProyectos) * 100) : 0;
   
-  const conteoEstados = proyectos.reduce((acc, p) => {
+  const conteoEstados = proyectosFiltrados.reduce((acc, p) => {
     const estado = p?.estado_flujo || 'Desconocido';
     acc[estado] = (acc[estado] || 0) + 1;
     return acc;
@@ -87,7 +102,7 @@ function App() {
 
   const nombresMeses = { '01':'Ene', '02':'Feb', '03':'Mar', '04':'Abr', '05':'May', '06':'Jun', '07':'Jul', '08':'Ago', '09':'Sep', '10':'Oct', '11':'Nov', '12':'Dic' };
   
-  const conteoMeses = proyectos.reduce((acc, p) => {
+  const conteoMeses = proyectosFiltrados.reduce((acc, p) => {
     if (p?.fecha_lanzamiento) {
       const mesNum = p.fecha_lanzamiento.substring(5, 7);
       const nombreMes = nombresMeses[mesNum] || mesNum;
@@ -101,14 +116,6 @@ function App() {
     .sort((a, b) => ordenMeses.indexOf(a) - ordenMeses.indexOf(b))
     .map(key => ({ mes: key, lanzamientos: conteoMeses[key] }));
 
-  const mapaAreas = { 1: 'Eventos', 2: 'Marketing', 3: 'Proyectos', 4: 'Gestión' };
-  const conteoAreas = proyectos.reduce((acc, p) => {
-    const nombreArea = mapaAreas[p?.id_area] || 'Otros';
-    acc[nombreArea] = (acc[nombreArea] || 0) + 1;
-    return acc;
-  }, {});
-  const datosAreas = Object.keys(conteoAreas).map(key => ({ name: key, value: conteoAreas[key] }));
-  const coloresAreas = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
   const coloresPipeline = { 'Ideacion': '#6b7280', 'Planificacion': '#f59e0b', 'En Ejecucion': '#3b82f6', 'Finalizado': '#10b981' };
 
   // --- LÓGICA DE CALENDARIO ---
@@ -139,27 +146,14 @@ function App() {
       alert("No hay proyectos en pantalla para exportar.");
       return;
     }
-
-    // 1. Definir cabeceras del archivo
     const cabeceras = ["ID Proyecto", "Nombre", "Estado", "Fecha Lanzamiento", "Aforo Proyectado"];
-
-    // 2. Extraer y aplanar los datos de Supabase
     const filas = proyectosFiltrados.map(p => {
       const aforo = p?.detalle_eventos?.[0]?.capacidad_max_aforo || 0;
-      return [
-        p.id_proyecto,
-        `"${p.nombre_proyecto}"`, // Se envuelve en comillas por si el nombre tiene comas
-        p.estado_flujo,
-        p.fecha_lanzamiento || "Sin fecha",
-        aforo
-      ].join(",");
+      return [p.id_proyecto, `"${p.nombre_proyecto}"`, p.estado_flujo, p.fecha_lanzamiento || "Sin fecha", aforo].join(",");
     });
-
-    // 3. Ensamblar el archivo y forzar la descarga en el navegador
     const contenidoCSV = [cabeceras.join(","), ...filas].join("\n");
     const blob = new Blob([contenidoCSV], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    
     const link = document.createElement("a");
     link.setAttribute("href", url);
     link.setAttribute("download", `Operaciones_Cinergia_${new Date().toISOString().split('T')[0]}.csv`);
@@ -284,9 +278,24 @@ function App() {
                 
                 <div className="flex items-center gap-3">
                   <div className="flex items-center bg-[#121214] border border-gray-800 rounded-md p-1">
-                    <button className="px-3 py-1 text-xs font-medium bg-gray-800 text-white rounded shadow-sm">30D</button>
-                    <button className="px-3 py-1 text-xs font-medium text-gray-400 hover:text-white transition-colors">YTD</button>
-                    <button className="px-3 py-1 text-xs font-medium text-gray-400 hover:text-white transition-colors">Todos</button>
+                    <button 
+                      onClick={() => setFiltroTiempo("30D")}
+                      className={`px-3 py-1 text-xs font-medium rounded shadow-sm transition-all ${filtroTiempo === '30D' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                      30D
+                    </button>
+                    <button 
+                      onClick={() => setFiltroTiempo("YTD")}
+                      className={`px-3 py-1 text-xs font-medium rounded shadow-sm transition-all ${filtroTiempo === 'YTD' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                      YTD
+                    </button>
+                    <button 
+                      onClick={() => setFiltroTiempo("Todos")}
+                      className={`px-3 py-1 text-xs font-medium rounded shadow-sm transition-all ${filtroTiempo === 'Todos' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                      Todos
+                    </button>
                   </div>
                   <div className="h-6 w-px bg-gray-800"></div>
                   <button onClick={exportarDatosCSV} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition-colors shadow-sm">
@@ -419,7 +428,7 @@ function App() {
                   {diasCalendario.map((item, idx) => {
                     if (!item) return <div key={`empty-${idx}`} className="border-r border-b border-gray-800/30 bg-[#09090b]/20"></div>;
                     
-                    const proyectosDelDia = proyectos.filter(p => p?.fecha_lanzamiento === item.fechaCompleta);
+                    const proyectosDelDia = proyectosFiltrados.filter(p => p?.fecha_lanzamiento === item.fechaCompleta);
                     
                     return (
                       <div key={idx} className="border-r border-b border-gray-800/30 p-2 relative hover:bg-gray-800/10 transition-colors min-h-[100px] flex flex-col">
