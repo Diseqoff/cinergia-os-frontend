@@ -390,7 +390,7 @@ function App() {
                       <h3 className="text-gray-200 text-sm font-semibold mb-6">Pipeline Operativo</h3>
                       <div className="h-[220px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={datosPipeline} layout="vertical" margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
+                          <BarChart data={datosPipeline} layout="vertical" margin={{ top: 0, right: 20, left: 40, bottom: 0 }}>
                             <XAxis type="number" hide />
                             <YAxis dataKey="estado" type="category" stroke="#71717a" fontSize={11} tickLine={false} axisLine={false} />
                             <Tooltip cursor={{fill: '#18181b'}} contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '6px' }} />
