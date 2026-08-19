@@ -378,8 +378,8 @@ function App() {
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={datosCronograma} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                            <XAxis dataKey="mes" stroke="#71717a" fontSize={11} tickLine={false} axisLine={false} />
-                            <YAxis stroke="#71717a" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                            <XAxis dataKey="mes" stroke="#e5e7eb" fontSize={11} tickLine={false} axisLine={false} />
+                            <YAxis stroke="#e5e7eb" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                             <Tooltip cursor={{stroke: '#27272a', strokeWidth: 1}} contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '6px' }} />
                             <Line type="monotone" dataKey="lanzamientos" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3, fill: '#09090b', stroke: '#3b82f6', strokeWidth: 2 }} activeDot={{ r: 5, fill: '#3b82f6', stroke: '#fff' }} />
                           </LineChart>
@@ -392,7 +392,7 @@ function App() {
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={datosPipeline} layout="vertical" margin={{ top: 0, right: 20, left: 40, bottom: 0 }}>
                             <XAxis type="number" hide />
-                            <YAxis dataKey="estado" type="category" stroke="#71717a" fontSize={11} tickLine={false} axisLine={false} />
+                            <YAxis dataKey="estado" type="category" stroke="#e5e7eb" fontSize={11} tickLine={false} axisLine={false} />
                             <Tooltip cursor={{fill: '#18181b'}} contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '6px' }} />
                             <Bar dataKey="cantidad" radius={[0, 4, 4, 0]} barSize={16}>
                               {datosPipeline.map((entry, index) => <Cell key={`cell-${index}`} fill={coloresPipeline[entry.estado] || '#3b82f6'} />)}
