@@ -34,7 +34,8 @@ const AREA_COLOR = {
   Eventos: CHART.blue,
   Marketing: CHART.amber,
   Proyectos: CHART.emerald,
-  Logística: CHART.red
+  Reportes: CHART.muted,
+  "Gestión de Oportunidades": CHART.red
 };
 
 const PROYECTOS = [
@@ -48,7 +49,7 @@ const PROYECTOS = [
   { id: "PRJ-008", nombre: "Cinergia Summit Norte", area: "Eventos", estado: "En Ejecución", fecha: "28 Sep 2026", responsable: "Renzo Aliaga" },
 ];
 
-const AREAS_DISPONIBLES = ["Todas", "Eventos", "Marketing", "Proyectos"];
+const AREAS_DISPONIBLES = ["Todas", "Eventos", "Marketing", "Proyectos", "Reportes", "Gestión de Oportunidades"];
 
 const MES_INDEX = {
   Ene: 0, Feb: 1, Mar: 2, Abr: 3, May: 4, Jun: 5,
@@ -77,9 +78,13 @@ const SEMAFORO = [
     kpis: [{label: "Hitos en Fecha", value: "92%"}, {label: "Avance Real", value: "88%"}, {label: "Nuevos Proyectos", value: "2"}]
   },
   { 
-    area: "Logística", estado: "Crítico", detalle: "Aforo por confirmar — Congreso Cinergia", color: CHART.red, text: "text-red-400", bg: "rgba(239,68,68,0.14)",
-    kpis: [{label: "Puntualidad Entregas", value: "62%"}, {label: "Planes Correctivos", value: "2 activos"}, {label: "Satisfacción Interna", value: "3.1/5.0"}]
+    area: "Gestión de Oportunidades", estado: "Crítico", detalle: "Falta formalizar convenios institucionales", color: CHART.red, text: "text-red-400", bg: "rgba(239,68,68,0.14)",
+    kpis: [{label: "Nuevas Alianzas", value: "0"}, {label: "Reuniones Efectivas", value: "1"}, {label: "Tasa de Respuesta", value: "20%"}]
   },
+/*{ 
+    area: "Reportes", estado: "Óptimo", detalle: "Auditoría de datos operativos al día", color: CHART.muted, text: "text-zinc-400", bg: "rgba(113,113,122,0.14)",
+    kpis: [{label: "Entregables Externos", value: "100%"}, {label: "Alertas Activas", value: "0"}, {label: "Puntualidad", value: "95%"}]
+  }*/
 ];
 
 const IMPACTO_ORG = [
