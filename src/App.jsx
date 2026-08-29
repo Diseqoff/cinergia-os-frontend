@@ -14,7 +14,7 @@ import {
 } from "recharts";
 
 /* ------------------------------------------------------------------ */
-/* Tokens & datos                                                     */
+/* Tokens & datos globales (5 Áreas)                                  */
 /* ------------------------------------------------------------------ */
 
 const PANEL = "#121214";
@@ -34,8 +34,8 @@ const AREA_COLOR = {
   Eventos: CHART.blue,
   Marketing: CHART.amber,
   Proyectos: CHART.emerald,
-  Reportes: CHART.muted,
-  "Gestión de Oportunidades": CHART.red
+  "Gestión de Oportunidades": CHART.red,
+  Reportes: CHART.muted
 };
 
 const PROYECTOS = [
@@ -47,9 +47,11 @@ const PROYECTOS = [
   { id: "PRJ-010", nombre: "Cinergia Night Networking", area: "Marketing", estado: "Planificación", fecha: "21 Sep 2026", responsable: "Jorge Salas" },
   { id: "PRJ-009", nombre: "Taller de Liderazgo PE", area: "Proyectos", estado: "Finalizado", fecha: "11 Jun 2026", responsable: "Valentina Ruiz" },
   { id: "PRJ-008", nombre: "Cinergia Summit Norte", area: "Eventos", estado: "En Ejecución", fecha: "28 Sep 2026", responsable: "Renzo Aliaga" },
+  { id: "PRJ-007", nombre: "Alianza Estratégica IEEE", area: "Gestión de Oportunidades", estado: "En Ejecución", fecha: "15 Oct 2026", responsable: "Luis Torres" },
+  { id: "PRJ-006", nombre: "Auditoría Operativa Q3", area: "Reportes", estado: "Finalizado", fecha: "01 Oct 2026", responsable: "María Gómez" },
 ];
 
-const AREAS_DISPONIBLES = ["Todas", "Eventos", "Marketing", "Proyectos", "Reportes", "Gestión de Oportunidades"];
+const AREAS_DISPONIBLES = ["Todas", "Eventos", "Marketing", "Proyectos", "Gestión de Oportunidades", "Reportes"];
 
 const MES_INDEX = {
   Ene: 0, Feb: 1, Mar: 2, Abr: 3, May: 4, Jun: 5,
@@ -57,8 +59,10 @@ const MES_INDEX = {
 };
 
 function parseFechaProyecto(fecha) {
-  const [d, m, y] = fecha.split(" ");
-  return { day: parseInt(d, 10), month: MES_INDEX[m], year: parseInt(y, 10) };
+  if (!fecha) return { day: 1, month: 0, year: 2026 };
+  const parts = fecha.split(" ");
+  if (parts.length !== 3) return { day: 1, month: 0, year: 2026 };
+  return { day: parseInt(parts[0], 10), month: MES_INDEX[parts[1]] || 0, year: parseInt(parts[2], 10) };
 }
 
 const PROYECTOS_POR_FECHA = PROYECTOS.map((p) => ({ ...p, ...parseFechaProyecto(p.fecha) }));
@@ -81,10 +85,10 @@ const SEMAFORO = [
     area: "Gestión de Oportunidades", estado: "Crítico", detalle: "Falta formalizar convenios institucionales", color: CHART.red, text: "text-red-400", bg: "rgba(239,68,68,0.14)",
     kpis: [{label: "Nuevas Alianzas", value: "0"}, {label: "Reuniones Efectivas", value: "1"}, {label: "Tasa de Respuesta", value: "20%"}]
   },
-/*{ 
+  { 
     area: "Reportes", estado: "Óptimo", detalle: "Auditoría de datos operativos al día", color: CHART.muted, text: "text-zinc-400", bg: "rgba(113,113,122,0.14)",
     kpis: [{label: "Entregables Externos", value: "100%"}, {label: "Alertas Activas", value: "0"}, {label: "Puntualidad", value: "95%"}]
-  }*/
+  }
 ];
 
 const IMPACTO_ORG = [
@@ -115,11 +119,14 @@ const KPI_PROYECTOS = {
   tiempoCierre: { value: 18, suffix: " días", delta: "-3 días", trend: "down" },
 };
 
+// ESTA ES LA VARIABLE QUE BORRASTE EN TU COPY/PASTE
 const DISTRIBUCION_POR_AREA = [
   { name: "Eventos", value: PROYECTOS.filter((p) => p.area === "Eventos").length, color: AREA_COLOR.Eventos },
   { name: "Marketing", value: PROYECTOS.filter((p) => p.area === "Marketing").length, color: AREA_COLOR.Marketing },
   { name: "Proyectos", value: PROYECTOS.filter((p) => p.area === "Proyectos").length, color: AREA_COLOR.Proyectos },
-];
+  { name: "Gestión de Oportunidades", value: PROYECTOS.filter((p) => p.area === "Gestión de Oportunidades").length, color: AREA_COLOR["Gestión de Oportunidades"] },
+  { name: "Reportes", value: PROYECTOS.filter((p) => p.area === "Reportes").length, color: AREA_COLOR.Reportes },
+].filter(d => d.value > 0);
 
 const CARGA_LANZAMIENTOS = [
   { mes: "Mar", proyectos: 2 },
@@ -130,14 +137,6 @@ const CARGA_LANZAMIENTOS = [
   { mes: "Ago", proyectos: 7 },
   { mes: "Sep", proyectos: 9 },
   { mes: "Oct", proyectos: 8 },
-];
-
-const PIPELINE_OPERATIVO = [
-  { etapa: "Aprobación Presupuesto", dias: 9 },
-  { etapa: "Confirmación de Sede", dias: 12 },
-  { etapa: "Cierre de Sponsors", dias: 15 },
-  { etapa: "Diseño de Materiales", dias: 6 },
-  { etapa: "Logística Final", dias: 18 },
 ];
 
 /* --- Analítica de Marketing --- */
@@ -165,7 +164,7 @@ const ASISTENCIA_POR_EVENTO = [
 
 const AUDIT_LOG = [
   { hora: "09:42", titulo: "Auth de Supabase Activo", detalle: "Sesión de Directiva PE validada correctamente.", Icon: ShieldCheck, color: "text-emerald-500", dot: "bg-emerald-500" },
-  { hora: "09:15", titulo: "Sincronización completada", detalle: "Cronograma PE actualizado — 14 eventos.", Icon: RefreshCw, color: "text-blue-500", dot: "bg-blue-600" },
+  { hora: "09:15", titulo: "Sincronización completada", detalle: "Cronograma PE actualizado.", Icon: RefreshCw, color: "text-blue-500", dot: "bg-blue-600" },
   { hora: "08:50", titulo: "Nuevo proyecto registrado", detalle: "PRJ-015 creado por Ana Rodríguez.", Icon: FolderPlus, color: "text-blue-500", dot: "bg-blue-600" },
   { hora: "07:30", titulo: "Backup automático ejecutado", detalle: "Snapshot diario almacenado en frío.", Icon: Database, color: "text-zinc-500", dot: "bg-zinc-600" },
   { hora: "Ayer · 22:10", titulo: "Permisos actualizados", detalle: "Rol Directiva PE con acceso total.", Icon: Settings2, color: "text-amber-500", dot: "bg-amber-500" },
@@ -178,7 +177,8 @@ const AUDIT_LOG = [
 function areaClasses(area) {
   if (area === "Eventos") return { text: "text-blue-500", dot: "bg-blue-600" };
   if (area === "Marketing") return { text: "text-amber-500", dot: "bg-amber-500" };
-  if (area === "Logística") return { text: "text-red-500", dot: "bg-red-600" };
+  if (area === "Gestión de Oportunidades") return { text: "text-red-500", dot: "bg-red-600" };
+  if (area === "Reportes") return { text: "text-zinc-400", dot: "bg-zinc-500" };
   return { text: "text-emerald-500", dot: "bg-emerald-500" };
 }
 
@@ -427,10 +427,6 @@ function ActaDrawer({ proyecto, onClose }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Drawer "Ver Semáforo" (DESDE LA IZQUIERDA + GRÁFICO DE DECISIÓN)   */
-/* ------------------------------------------------------------------ */
-
-/* ------------------------------------------------------------------ */
 /* Drawer "Ver Semáforo" (PANEL DIVIDIDO: IZQUIERDA Y DERECHA)        */
 /* ------------------------------------------------------------------ */
 
@@ -453,7 +449,6 @@ function SemaforoDrawer({ data, onClose }) {
       className={`fixed inset-0 z-50 flex ${abierto ? "pointer-events-auto" : "pointer-events-none"}`}
       aria-hidden={!abierto}
     >
-      {/* Fondo negro que se oscurece y cierra el modal al hacer clic */}
       <div
         onClick={onClose}
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
@@ -461,13 +456,11 @@ function SemaforoDrawer({ data, onClose }) {
         }`}
       />
 
-      {/* Contenedor que desliza desde la izquierda. Abarca toda la pantalla. */}
       <div
         className={`relative flex h-full w-full transition-transform duration-300 ease-out ${
           abierto ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* PANEL IZQUIERDO: La barra de datos */}
         <div
           className="flex h-full w-full max-w-md flex-col border-r border-zinc-800 shadow-2xl shrink-0"
           style={{ backgroundColor: PANEL }}
@@ -521,7 +514,7 @@ function SemaforoDrawer({ data, onClose }) {
                 <div>
                   <h3 className="mb-3 text-sm font-semibold text-zinc-200">KPIs Registrados</h3>
                   <div className="grid grid-cols-1 gap-2.5">
-                    {data.kpis.map((kpi, idx) => (
+                    {data.kpis?.map((kpi, idx) => (
                       <div key={idx} className="flex items-center justify-between rounded-lg border border-zinc-800 p-3">
                         <span className="text-sm text-zinc-400">{kpi.label}</span>
                         <span className="font-mono text-sm font-medium text-zinc-200">{kpi.value}</span>
@@ -543,7 +536,6 @@ function SemaforoDrawer({ data, onClose }) {
           )}
         </div>
 
-        {/* PANEL DERECHO: El gráfico gigante flotando en la parte sobrante */}
         {data && (
           <div className="hidden lg:flex flex-1 flex-col justify-center p-12 pointer-events-none">
             <div className="max-w-5xl w-full mx-auto pointer-events-auto">
@@ -681,8 +673,6 @@ function TopBar({ query, setQuery, placeholder }) {
       </div>
 
       <div className="flex shrink-0 items-center gap-4">
-        
-        {/* BOTÓN DE NOTIFICACIONES */}
         <div className="relative">
           <button 
             onClick={() => setShowNotif(!showNotif)}
@@ -692,7 +682,6 @@ function TopBar({ query, setQuery, placeholder }) {
             <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />
           </button>
 
-          {/* Menú Desplegable de Notificaciones */}
           {showNotif && (
             <div className="absolute right-0 top-full mt-2 w-72 rounded-xl border border-zinc-800 shadow-2xl z-50 p-4" style={{ backgroundColor: PANEL }}>
               <h3 className="mb-3 text-sm font-semibold text-zinc-200">Alertas Recientes</h3>
@@ -712,7 +701,6 @@ function TopBar({ query, setQuery, placeholder }) {
 
         <div className="h-6 w-px bg-zinc-800/60" />
 
-        {/* MENÚ DE USUARIO */}
         <div className="relative">
           <button 
             onClick={() => setShowUserMenu(!showUserMenu)}
@@ -728,7 +716,6 @@ function TopBar({ query, setQuery, placeholder }) {
             <ChevronDown className={`hidden h-3.5 w-3.5 text-zinc-600 sm:block transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`} />
           </button>
 
-          {/* Menú Desplegable de Usuario */}
           {showUserMenu && (
             <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-zinc-800 shadow-2xl z-50 p-2" style={{ backgroundColor: PANEL }}>
               <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-zinc-400 transition-colors hover:bg-zinc-800/50 hover:text-zinc-100">
@@ -741,7 +728,6 @@ function TopBar({ query, setQuery, placeholder }) {
           )}
         </div>
 
-        {/* BOTÓN DESCONECTAR */}
         <button 
           onClick={() => alert("Cerrando conexión segura con Cinergia OS...")}
           className="flex items-center gap-1.5 rounded-lg border border-red-900/30 px-3 py-2 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 bg-red-500/5"
@@ -767,7 +753,6 @@ function VistaPanelMacro({ onVerActa, onAbrirSemaforo }) {
         subtitle="Vista consolidada del estado general de Cinergia: salud por área, impacto organizacional y el proyecto insignia del mes."
       />
 
-      {/* 1. PROYECTO DESTACADO */}
       <div
         className="mb-8 relative flex flex-col lg:flex-row items-center gap-6 overflow-hidden rounded-xl border border-zinc-800 p-6"
         style={{
@@ -829,9 +814,8 @@ function VistaPanelMacro({ onVerActa, onAbrirSemaforo }) {
         </div>
       </div>
 
-      {/* 2. SEMÁFORO - AHORA INTERACTIVO */}
       <h3 className="mb-4 text-sm font-semibold text-zinc-200">Semáforo de Rendimiento</h3>
-      <div className="mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {SEMAFORO.map((s) => (
           <button
             key={s.area}
@@ -863,7 +847,6 @@ function VistaPanelMacro({ onVerActa, onAbrirSemaforo }) {
         ))}
       </div>
 
-      {/* 3. IMPACTO ORGANIZACIONAL */}
       <div>
         <h3 className="mb-4 text-sm font-semibold text-zinc-200">Impacto Organizacional (2026)</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1092,16 +1075,58 @@ function VistaCalendario({ onVerActa }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Vista 4 · Analítica de Proyectos                                   */
+/* Vista 4 · Analítica de Proyectos (ISOLADA A 3 ÁREAS)               */
 /* ------------------------------------------------------------------ */
 
 function VistaAnaliticaProyectos() {
+  const [areaSeleccionada, setAreaSeleccionada] = useState("Todas");
+
+  // Pipeline exclusivo para el núcleo operativo duro
+  const pipelinesPorArea = {
+    Todas: [
+      { etapa: "Planificación Base", dias: 9 },
+      { etapa: "Aprobación Directiva", dias: 12 },
+      { etapa: "Ejecución Activa", dias: 15 },
+      { etapa: "Revisión / QA", dias: 6 },
+      { etapa: "Cierre Operativo", dias: 18 },
+    ],
+    Eventos: [
+      { etapa: "Planificación Base", dias: 14 },
+      { etapa: "Aprobación Directiva", dias: 18 },
+      { etapa: "Ejecución Activa", dias: 20 },
+      { etapa: "Revisión / QA", dias: 8 },
+      { etapa: "Cierre Operativo", dias: 22 },
+    ],
+    Marketing: [
+      { etapa: "Planificación Base", dias: 5 },
+      { etapa: "Aprobación Directiva", dias: 4 },
+      { etapa: "Ejecución Activa", dias: 8 },
+      { etapa: "Revisión / QA", dias: 2 },
+      { etapa: "Cierre Operativo", dias: 10 },
+    ],
+    Proyectos: [
+      { etapa: "Planificación Base", dias: 7 },
+      { etapa: "Aprobación Directiva", dias: 9 },
+      { etapa: "Ejecución Activa", dias: 10 },
+      { etapa: "Revisión / QA", dias: 5 },
+      { etapa: "Cierre Operativo", dias: 12 },
+    ]
+  };
+
+  // Restringimos la dona para que solo muestre las 3 áreas nucleares
+  const distribucionAnalitica = DISTRIBUCION_POR_AREA.filter((d) => 
+    ["Eventos", "Marketing", "Proyectos"].includes(d.name)
+  );
+
+  const pipelineActivo = pipelinesPorArea[areaSeleccionada] || pipelinesPorArea["Todas"];
+  const colorActivo = AREA_COLOR[areaSeleccionada] || CHART.emerald;
+
   return (
     <div>
       <SectionHeader
         eyebrow="Módulo / Analítica"
         title="Analítica de Proyectos"
-        subtitle="Indicadores de ejecución, flujo de lanzamientos y distribución de proyectos por área."
+        subtitle="Indicadores de ejecución del núcleo operativo (Eventos, Marketing, Proyectos)."
       />
 
       <div className="mb-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1144,12 +1169,24 @@ function VistaAnaliticaProyectos() {
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <div className="rounded-xl border border-zinc-800 p-5" style={{ backgroundColor: PANEL }}>
-          <h3 className="mb-1 text-sm font-semibold text-zinc-200">Pipeline Operativo</h3>
-          <p className="mb-4 text-xs text-zinc-500">Días promedio por etapa — cuellos de botella del proceso</p>
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-sm font-semibold text-zinc-200">Pipeline Operativo</h3>
+            {areaSeleccionada !== "Todas" && (
+              <button 
+                onClick={() => setAreaSeleccionada("Todas")}
+                className="font-mono text-[10px] text-blue-400 hover:underline focus-visible:outline-none"
+              >
+                Ver Vista General ✕
+              </button>
+            )}
+          </div>
+          <p className="mb-4 text-xs text-zinc-500">
+            Días promedio por etapa {areaSeleccionada !== "Todas" ? `(${areaSeleccionada})` : "(General)"}
+          </p>
           <div style={{ height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={PIPELINE_OPERATIVO}
+                data={pipelineActivo}
                 layout="vertical"
                 margin={{ top: 5, right: 24, left: 8, bottom: 0 }}
               >
@@ -1165,25 +1202,36 @@ function VistaAnaliticaProyectos() {
                   width={140}
                 />
                 <Tooltip content={<ChartTooltip unit=" días" />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-                <Bar dataKey="dias" name="Días promedio" fill={CHART.emerald} radius={[0, 6, 6, 0]} barSize={18} />
+                <Bar 
+                  dataKey="dias" 
+                  name="Días promedio" 
+                  fill={colorActivo} 
+                  radius={[0, 6, 6, 0]} 
+                  barSize={18} 
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
           <p className="mt-3 text-xs text-zinc-500">
-            <span className="text-red-400">Logística Final</span> es la etapa con mayor demora del pipeline.
+            Filtrando métricas para: <span className="text-zinc-200 font-medium">{areaSeleccionada}</span>
           </p>
         </div>
 
         <div className="rounded-xl border border-zinc-800 p-5" style={{ backgroundColor: PANEL }}>
-          <h3 className="mb-1 text-sm font-semibold text-zinc-200">Distribución de Proyectos por Área</h3>
-          <p className="mb-4 text-xs text-zinc-500">Participación de cada área sobre el total del portafolio</p>
+          <h3 className="mb-1 text-sm font-semibold text-zinc-200">Distribución Núcleo Operativo</h3>
+          <p className="mb-4 text-xs text-zinc-500">Haz clic en un área para aislar sus datos en el pipeline</p>
           <div className="flex flex-col items-center gap-6 sm:flex-row">
             <div style={{ height: 220, width: 220 }} className="shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={DISTRIBUCION_POR_AREA} dataKey="value" nameKey="name" innerRadius={62} outerRadius={92} paddingAngle={3} stroke="none">
-                    {DISTRIBUCION_POR_AREA.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
+                  <Pie data={distribucionAnalitica} dataKey="value" nameKey="name" innerRadius={62} outerRadius={92} paddingAngle={3} stroke="none">
+                    {distribucionAnalitica.map((entry, i) => (
+                      <Cell 
+                        key={i} 
+                        fill={entry.color} 
+                        className="cursor-pointer transition-opacity hover:opacity-80 focus-visible:outline-none"
+                        onClick={() => setAreaSeleccionada(entry.name)}
+                      />
                     ))}
                   </Pie>
                   <Tooltip content={<ChartTooltip unit=" proyectos" />} />
@@ -1191,15 +1239,24 @@ function VistaAnaliticaProyectos() {
               </ResponsiveContainer>
             </div>
             <div className="flex w-full flex-col gap-3">
-              {DISTRIBUCION_POR_AREA.map((m) => (
-                <div key={m.name} className="flex items-center justify-between rounded-lg border border-zinc-800 px-3 py-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: m.color }} />
-                    <span className="truncate text-sm text-zinc-300">{m.name}</span>
-                  </div>
-                  <span className="font-mono text-sm font-medium text-zinc-100">{m.value}</span>
-                </div>
-              ))}
+              {distribucionAnalitica.map((m) => {
+                const isSelected = areaSeleccionada === m.name;
+                return (
+                  <button
+                    key={m.name}
+                    onClick={() => setAreaSeleccionada(isSelected ? "Todas" : m.name)}
+                    className={`flex items-center justify-between rounded-lg border px-3 py-2.5 transition-all text-left w-full focus-visible:outline-none ${
+                      isSelected ? "border-blue-500/50 bg-blue-500/10" : "border-zinc-800 hover:border-zinc-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: m.color }} />
+                      <span className="truncate text-sm text-zinc-300">{m.name}</span>
+                    </div>
+                    <span className="font-mono text-sm font-medium text-zinc-100">{m.value}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1297,8 +1354,6 @@ export default function CinergiaOS() {
   const [vistaActiva, setVistaActiva] = useState("macro");
   const [query, setQuery] = useState("");
   const [actaAbierta, setActaAbierta] = useState(null);
-  
-  // Nuevo estado para el Semáforo
   const [semaforoAbierto, setSemaforoAbierto] = useState(null);
 
   const placeholders = {
