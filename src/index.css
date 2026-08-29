@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+/* Estilos globales para Scrollbar - Tema Oscuro */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #09090b; /* bg-zinc-950 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a; /* bg-zinc-800 */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46; /* bg-zinc-700 */
+}
+
+/* Soporte para Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #27272a #09090b;
+}
