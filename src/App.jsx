@@ -5,7 +5,7 @@ import {
   TrendingUp, TrendingDown, Minus, Users, Layers, Zap, CheckCircle2,
   ShieldCheck, RefreshCw, FolderPlus, Database, Settings2,
   Calendar as CalendarIcon, Star, Award, Building2, Timer, Filter,
-  MapPin, DollarSign, ClipboardList,
+  MapPin, DollarSign, ClipboardList, Activity
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -34,6 +34,7 @@ const AREA_COLOR = {
   Eventos: CHART.blue,
   Marketing: CHART.amber,
   Proyectos: CHART.emerald,
+  Logística: CHART.red
 };
 
 const PROYECTOS = [
@@ -63,10 +64,22 @@ const PROYECTOS_POR_FECHA = PROYECTOS.map((p) => ({ ...p, ...parseFechaProyecto(
 
 /* --- Panel Macro --- */
 const SEMAFORO = [
-  { area: "Eventos", estado: "Óptimo", detalle: "3 de 3 hitos on-time este trimestre", color: CHART.emerald, text: "text-emerald-400", bg: "rgba(16,185,129,0.14)" },
-  { area: "Marketing", estado: "Atención", detalle: "Retraso leve en 1 entregable de campaña", color: CHART.amber, text: "text-amber-400", bg: "rgba(245,158,11,0.14)" },
-  { area: "Proyectos", estado: "Óptimo", detalle: "Ejecución dentro de cronograma", color: CHART.emerald, text: "text-emerald-400", bg: "rgba(16,185,129,0.14)" },
-  { area: "Logística", estado: "Crítico", detalle: "Aforo por confirmar — Congreso Cinergia", color: CHART.red, text: "text-red-400", bg: "rgba(239,68,68,0.14)" },
+  { 
+    area: "Eventos", estado: "Óptimo", detalle: "3 de 3 hitos on-time este trimestre", color: CHART.emerald, text: "text-emerald-400", bg: "rgba(16,185,129,0.14)",
+    kpis: [{label: "Cumplimiento Cronograma", value: "98%"}, {label: "Asistencia vs Aforo", value: "85%"}, {label: "Satisfacción", value: "4.6/5.0"}]
+  },
+  { 
+    area: "Marketing", estado: "Atención", detalle: "Retraso leve en 1 entregable de campaña", color: CHART.amber, text: "text-amber-400", bg: "rgba(245,158,11,0.14)",
+    kpis: [{label: "Calendario Editorial", value: "82%"}, {label: "Engagement", value: "6.8%"}, {label: "Crecimiento", value: "4.2%"}]
+  },
+  { 
+    area: "Proyectos", estado: "Óptimo", detalle: "Ejecución dentro de cronograma", color: CHART.emerald, text: "text-emerald-400", bg: "rgba(16,185,129,0.14)",
+    kpis: [{label: "Hitos en Fecha", value: "92%"}, {label: "Avance Real", value: "88%"}, {label: "Nuevos Proyectos", value: "2"}]
+  },
+  { 
+    area: "Logística", estado: "Crítico", detalle: "Aforo por confirmar — Congreso Cinergia", color: CHART.red, text: "text-red-400", bg: "rgba(239,68,68,0.14)",
+    kpis: [{label: "Puntualidad Entregas", value: "62%"}, {label: "Planes Correctivos", value: "2 activos"}, {label: "Satisfacción Interna", value: "3.1/5.0"}]
+  },
 ];
 
 const IMPACTO_ORG = [
@@ -160,12 +173,16 @@ const AUDIT_LOG = [
 function areaClasses(area) {
   if (area === "Eventos") return { text: "text-blue-500", dot: "bg-blue-600" };
   if (area === "Marketing") return { text: "text-amber-500", dot: "bg-amber-500" };
+  if (area === "Logística") return { text: "text-red-500", dot: "bg-red-600" };
   return { text: "text-emerald-500", dot: "bg-emerald-500" };
 }
 
 function statusClasses(estado) {
   if (estado === "En Ejecución") return { text: "text-blue-400", dot: "bg-blue-500", bg: "rgba(37,99,235,0.14)" };
   if (estado === "Finalizado") return { text: "text-emerald-400", dot: "bg-emerald-500", bg: "rgba(16,185,129,0.14)" };
+  if (estado === "Crítico") return { text: "text-red-400", dot: "bg-red-500", bg: "rgba(239,68,68,0.14)" };
+  if (estado === "Atención") return { text: "text-amber-400", dot: "bg-amber-500", bg: "rgba(245,158,11,0.14)" };
+  if (estado === "Óptimo") return { text: "text-emerald-400", dot: "bg-emerald-500", bg: "rgba(16,185,129,0.14)" };
   return { text: "text-amber-400", dot: "bg-amber-500", bg: "rgba(245,158,11,0.14)" };
 }
 
@@ -310,9 +327,9 @@ function ActaDrawer({ proyecto, onClose }) {
       >
         {proyecto && (
           <>
-            <div className="flex items-start justify-between gap-4 border-b border-zinc-800 px-6 py-5">
+            <div className="flex items-start justify-between gap-4 border-b border-zinc-800 px-6 py-5 shrink-0">
               <div className="min-w-0">
-                <p className="font-mono text-xs text-zinc-500">{proyecto.id}</p>
+                <p className="font-mono text-xs text-zinc-500">{proyecto.id || "PRJ-XXX"}</p>
                 <h2 className="mt-1 text-lg font-semibold text-zinc-100">{proyecto.nombre}</h2>
               </div>
               <button
@@ -326,7 +343,7 @@ function ActaDrawer({ proyecto, onClose }) {
 
             <div className="flex-1 overflow-y-auto px-6 py-6">
               <div className="mb-6 flex items-center gap-3">
-                <StatusBadge estado={proyecto.estado} />
+                <StatusBadge estado={proyecto.estado || "En Evaluación"} />
                 <span className="flex items-center gap-1.5 text-xs text-zinc-500">
                   <span className={`h-1.5 w-1.5 rounded-full ${areaClasses(proyecto.area).dot}`} />
                   <span className={areaClasses(proyecto.area).text}>{proyecto.area}</span>
@@ -389,7 +406,7 @@ function ActaDrawer({ proyecto, onClose }) {
               </div>
             </div>
 
-            <div className="border-t border-zinc-800 px-6 py-4">
+            <div className="border-t border-zinc-800 px-6 py-4 shrink-0">
               <button
                 onClick={onClose}
                 className="w-full rounded-lg border border-zinc-800 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
@@ -398,6 +415,164 @@ function ActaDrawer({ proyecto, onClose }) {
               </button>
             </div>
           </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Drawer "Ver Semáforo" (DESDE LA IZQUIERDA + GRÁFICO DE DECISIÓN)   */
+/* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/* Drawer "Ver Semáforo" (PANEL DIVIDIDO: IZQUIERDA Y DERECHA)        */
+/* ------------------------------------------------------------------ */
+
+function SemaforoDrawer({ data, onClose }) {
+  const abierto = !!data;
+
+  const evolucion = useMemo(() => {
+    if (!data) return [];
+    const base = data.estado === "Óptimo" ? 80 : data.estado === "Atención" ? 60 : 30;
+    return [
+      { semana: "Sem 1", valor: Math.max(10, Math.round(base - 10 + Math.random() * 8)) },
+      { semana: "Sem 2", valor: Math.max(15, Math.round(base - 5 + Math.random() * 10)) },
+      { semana: "Sem 3", valor: Math.max(20, Math.round(base + Math.random() * 8)) },
+      { semana: "Sem 4", valor: data.estado === "Óptimo" ? 95 : data.estado === "Atención" ? 75 : 45 },
+    ];
+  }, [data]);
+
+  return (
+    <div
+      className={`fixed inset-0 z-50 flex ${abierto ? "pointer-events-auto" : "pointer-events-none"}`}
+      aria-hidden={!abierto}
+    >
+      {/* Fondo negro que se oscurece y cierra el modal al hacer clic */}
+      <div
+        onClick={onClose}
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
+          abierto ? "opacity-100" : "opacity-0"
+        }`}
+      />
+
+      {/* Contenedor que desliza desde la izquierda. Abarca toda la pantalla. */}
+      <div
+        className={`relative flex h-full w-full transition-transform duration-300 ease-out ${
+          abierto ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* PANEL IZQUIERDO: La barra de datos */}
+        <div
+          className="flex h-full w-full max-w-md flex-col border-r border-zinc-800 shadow-2xl shrink-0"
+          style={{ backgroundColor: PANEL }}
+          role="dialog"
+          aria-modal="true"
+        >
+          {data && (
+            <>
+              <div className="flex items-start justify-between gap-4 border-b border-zinc-800 px-6 py-5 shrink-0">
+                <div className="min-w-0 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: data.bg }}>
+                    <Activity className={`h-5 w-5 ${data.text}`} />
+                  </div>
+                  <div>
+                    <p className="font-mono text-xs text-zinc-500">Métricas de Área</p>
+                    <h2 className="mt-0.5 text-lg font-semibold text-zinc-100">{data.area}</h2>
+                  </div>
+                </div>
+                <button
+                  onClick={onClose}
+                  aria-label="Cerrar panel"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-6">
+                <div className="flex items-center justify-between rounded-lg border border-zinc-800 p-4 bg-zinc-900/30">
+                  <span className="text-sm font-medium text-zinc-300">Estado Actual</span>
+                  <StatusBadge estado={data.estado} />
+                </div>
+
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold text-zinc-200">Motivo de Estado</h3>
+                  <p className="text-sm leading-relaxed text-zinc-400">{data.detalle}</p>
+                  {data.estado === "Crítico" && (
+                    <div className="mt-3 flex items-start gap-2 rounded-md border border-red-900/30 bg-red-500/10 p-3 text-xs text-red-400">
+                      <Megaphone className="mt-0.5 h-4 w-4 shrink-0" />
+                      <p>Alerta Crítica: Requiere activar plan correctivo inmediato.</p>
+                    </div>
+                  )}
+                  {data.estado === "Atención" && (
+                    <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-900/30 bg-amber-500/10 p-3 text-xs text-amber-400">
+                      <Megaphone className="mt-0.5 h-4 w-4 shrink-0" />
+                      <p>Zona de Riesgo: Se requiere monitoreo reforzado.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold text-zinc-200">KPIs Registrados</h3>
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {data.kpis.map((kpi, idx) => (
+                      <div key={idx} className="flex items-center justify-between rounded-lg border border-zinc-800 p-3">
+                        <span className="text-sm text-zinc-400">{kpi.label}</span>
+                        <span className="font-mono text-sm font-medium text-zinc-200">{kpi.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-zinc-800 px-6 py-4 shrink-0">
+                <button
+                  onClick={onClose}
+                  className="w-full rounded-lg border border-zinc-800 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+                >
+                  Cerrar reporte
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* PANEL DERECHO: El gráfico gigante flotando en la parte sobrante */}
+        {data && (
+          <div className="hidden lg:flex flex-1 flex-col justify-center p-12 pointer-events-none">
+            <div className="max-w-5xl w-full mx-auto pointer-events-auto">
+              <h2 className="text-3xl font-bold text-white mb-2">Evolución de Rendimiento: {data.area}</h2>
+              <p className="text-zinc-400 mb-8 text-lg">Análisis de la tendencia a 4 semanas que justifica la decisión del semáforo.</p>
+              
+              <div className="h-[450px] w-full rounded-2xl border border-white/10 p-8 shadow-2xl bg-zinc-950/50 backdrop-blur-md">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={evolucion} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id={`grad-big-${data.area}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={data.color} stopOpacity={0.4} />
+                        <stop offset="95%" stopColor={data.color} stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke={CHART.grid} strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="semana" stroke={CHART.grid} tick={{ fill: CHART.text, fontSize: 12 }} tickLine={false} axisLine={false} />
+                    <YAxis stroke={CHART.grid} tick={{ fill: CHART.text, fontSize: 12 }} tickLine={false} axisLine={false} domain={[0, 100]} />
+                    <Tooltip content={<ChartTooltip unit="%" />} cursor={{ stroke: CHART.grid }} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="valor" 
+                      name="Nivel de Cumplimiento" 
+                      stroke={data.color} 
+                      strokeWidth={4} 
+                      fill={`url(#grad-big-${data.area})`} 
+                      dot={{ r: 6, fill: data.color, strokeWidth: 0 }}
+                      activeDot={{ r: 8, fill: "#fff", stroke: data.color, strokeWidth: 2 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -472,6 +647,9 @@ function Sidebar({ vistaActiva, setVistaActiva }) {
 }
 
 function TopBar({ query, setQuery, placeholder }) {
+  const [showNotif, setShowNotif] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
   return (
     <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-white/5 px-6 bg-transparent z-10">
       <div className="flex max-w-md flex-1 items-center gap-2 rounded-lg border border-zinc-800/60 bg-zinc-950/50 px-3 py-2">
@@ -498,25 +676,71 @@ function TopBar({ query, setQuery, placeholder }) {
       </div>
 
       <div className="flex shrink-0 items-center gap-4">
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800/60 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-100">
-          <Bell className="h-4 w-4" />
-          <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />
-        </button>
+        
+        {/* BOTÓN DE NOTIFICACIONES */}
+        <div className="relative">
+          <button 
+            onClick={() => setShowNotif(!showNotif)}
+            className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800/60 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+          >
+            <Bell className="h-4 w-4" />
+            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />
+          </button>
+
+          {/* Menú Desplegable de Notificaciones */}
+          {showNotif && (
+            <div className="absolute right-0 top-full mt-2 w-72 rounded-xl border border-zinc-800 shadow-2xl z-50 p-4" style={{ backgroundColor: PANEL }}>
+              <h3 className="mb-3 text-sm font-semibold text-zinc-200">Alertas Recientes</h3>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start gap-2">
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />
+                  <p className="text-xs text-zinc-400"><strong className="text-zinc-200">Logística:</strong> Aforo por confirmar para Congreso Cinergia 2026.</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                  <p className="text-xs text-zinc-400"><strong className="text-zinc-200">Marketing:</strong> Retraso leve en entregable de campaña publicitaria.</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="h-6 w-px bg-zinc-800/60" />
 
-        <button className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-zinc-900/50">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-emerald-500">
-            <span className="font-mono text-xs font-bold text-white">PE</span>
-          </div>
-          <div className="hidden text-left sm:block">
-            <p className="text-sm font-medium leading-tight text-zinc-200">Directiva PE</p>
-            <p className="text-xs leading-tight text-zinc-500">Sesión activa</p>
-          </div>
-          <ChevronDown className="hidden h-3.5 w-3.5 text-zinc-600 sm:block" />
-        </button>
+        {/* MENÚ DE USUARIO */}
+        <div className="relative">
+          <button 
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-zinc-900/50"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-emerald-500">
+              <span className="font-mono text-xs font-bold text-white">PE</span>
+            </div>
+            <div className="hidden text-left sm:block">
+              <p className="text-sm font-medium leading-tight text-zinc-200">Directiva PE</p>
+              <p className="text-xs leading-tight text-zinc-500">Sesión activa</p>
+            </div>
+            <ChevronDown className={`hidden h-3.5 w-3.5 text-zinc-600 sm:block transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`} />
+          </button>
 
-        <button className="flex items-center gap-1.5 rounded-lg border border-red-900/30 px-3 py-2 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 bg-red-500/5">
+          {/* Menú Desplegable de Usuario */}
+          {showUserMenu && (
+            <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-zinc-800 shadow-2xl z-50 p-2" style={{ backgroundColor: PANEL }}>
+              <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-zinc-400 transition-colors hover:bg-zinc-800/50 hover:text-zinc-100">
+                <Settings2 className="h-4 w-4" /> Configuración OS
+              </button>
+              <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-zinc-400 transition-colors hover:bg-zinc-800/50 hover:text-zinc-100">
+                <ShieldCheck className="h-4 w-4" /> Accesos de Área
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* BOTÓN DESCONECTAR */}
+        <button 
+          onClick={() => alert("Cerrando conexión segura con Cinergia OS...")}
+          className="flex items-center gap-1.5 rounded-lg border border-red-900/30 px-3 py-2 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 bg-red-500/5"
+        >
           <LogOut className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Desconectar</span>
         </button>
@@ -526,10 +750,10 @@ function TopBar({ query, setQuery, placeholder }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Vista 1 · Panel Macro (Control Directivo) - CORREGIDO              */
+/* Vista 1 · Panel Macro (Control Directivo)                          */
 /* ------------------------------------------------------------------ */
 
-function VistaPanelMacro() {
+function VistaPanelMacro({ onVerActa, onAbrirSemaforo }) {
   return (
     <div>
       <SectionHeader
@@ -538,7 +762,7 @@ function VistaPanelMacro() {
         subtitle="Vista consolidada del estado general de Cinergia: salud por área, impacto organizacional y el proyecto insignia del mes."
       />
 
-      {/* 1. PROYECTO DESTACADO: Hero Horizontal Superior */}
+      {/* 1. PROYECTO DESTACADO */}
       <div
         className="mb-8 relative flex flex-col lg:flex-row items-center gap-6 overflow-hidden rounded-xl border border-zinc-800 p-6"
         style={{
@@ -585,20 +809,29 @@ function VistaPanelMacro() {
               <span className="font-mono text-xl font-semibold text-zinc-200">{m.value}</span>
             </div>
           ))}
-          <button className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-500">
+          
+          <button 
+            onClick={() => onVerActa({
+              ...PROYECTO_PRESTIGIO,
+              id: "PRJ-015",
+              estado: "En Ejecución"
+            })}
+            className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-500"
+          >
             <FileText className="h-3.5 w-3.5" />
             Ver Detalle Operativo
           </button>
         </div>
       </div>
 
-      {/* 2. SEMÁFORO: Barras Horizontales de Estado Rápido */}
+      {/* 2. SEMÁFORO - AHORA INTERACTIVO */}
       <h3 className="mb-4 text-sm font-semibold text-zinc-200">Semáforo de Rendimiento</h3>
       <div className="mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {SEMAFORO.map((s) => (
-          <div
+          <button
             key={s.area}
-            className="flex items-center gap-4 rounded-xl border border-zinc-800 p-4 transition-colors hover:bg-zinc-900/50"
+            onClick={() => onAbrirSemaforo(s)}
+            className="group flex w-full text-left items-center gap-4 rounded-xl border border-zinc-800 p-4 transition-all duration-200 hover:bg-zinc-900/50 hover:border-zinc-700 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
             style={{ backgroundColor: PANEL }}
           >
             <span className="relative flex h-3 w-3 shrink-0">
@@ -621,11 +854,11 @@ function VistaPanelMacro() {
                 {s.detalle}
               </p>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
-      {/* 3. IMPACTO ORGANIZACIONAL: En línea y compacto al final */}
+      {/* 3. IMPACTO ORGANIZACIONAL */}
       <div>
         <h3 className="mb-4 text-sm font-semibold text-zinc-200">Impacto Organizacional (2026)</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1059,6 +1292,9 @@ export default function CinergiaOS() {
   const [vistaActiva, setVistaActiva] = useState("macro");
   const [query, setQuery] = useState("");
   const [actaAbierta, setActaAbierta] = useState(null);
+  
+  // Nuevo estado para el Semáforo
+  const [semaforoAbierto, setSemaforoAbierto] = useState(null);
 
   const placeholders = {
     macro: "Buscar en el panel macro…",
@@ -1083,7 +1319,7 @@ export default function CinergiaOS() {
         <TopBar query={query} setQuery={setQuery} placeholder={placeholders[vistaActiva]} />
 
         <main className="flex-1 overflow-y-auto px-8 py-8">
-          {vistaActiva === "macro" && <VistaPanelMacro />}
+          {vistaActiva === "macro" && <VistaPanelMacro onVerActa={setActaAbierta} onAbrirSemaforo={setSemaforoAbierto} />}
           {vistaActiva === "portafolio" && (
             <VistaPortafolio query={query} setQuery={setQuery} onVerActa={setActaAbierta} />
           )}
@@ -1094,6 +1330,7 @@ export default function CinergiaOS() {
       </div>
 
       <ActaDrawer proyecto={actaAbierta} onClose={() => setActaAbierta(null)} />
+      <SemaforoDrawer data={semaforoAbierto} onClose={() => setSemaforoAbierto(null)} />
     </div>
   );
 }
