@@ -1,11 +1,13 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+// Asegúrate de que la ruta coincida con tu archivo real
+import { supabase } from "./supabaseClient"; 
 import {
   LayoutGrid, BarChart3, Megaphone, Search, Bell, LogOut,
   ChevronDown, FileText, ChevronLeft, ChevronRight, X,
   TrendingUp, TrendingDown, Minus, Users, Layers, Zap, CheckCircle2,
   ShieldCheck, RefreshCw, FolderPlus, Database, Settings2,
   Calendar as CalendarIcon, Star, Award, Building2, Timer, Filter,
-  MapPin, DollarSign, ClipboardList, Activity
+  MapPin, DollarSign, ClipboardList, Activity, Plus, UploadCloud
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -14,7 +16,7 @@ import {
 } from "recharts";
 
 /* ------------------------------------------------------------------ */
-/* Tokens & datos globales (5 Áreas)                                  */
+/* Tokens & datos                                                     */
 /* ------------------------------------------------------------------ */
 
 const PANEL = "#121214";
@@ -38,6 +40,7 @@ const AREA_COLOR = {
   Reportes: CHART.muted
 };
 
+// 5 Áreas a nivel global
 const PROYECTOS = [
   { id: "PRJ-015", nombre: "Congreso Cinergia 2026", area: "Eventos", estado: "En Ejecución", fecha: "14 Sep 2026", responsable: "Ana Rodríguez" },
   { id: "PRJ-014", nombre: "Lanzamiento Marca Cinergia", area: "Marketing", estado: "Finalizado", fecha: "02 Ago 2026", responsable: "Diego Torres" },
@@ -67,7 +70,7 @@ function parseFechaProyecto(fecha) {
 
 const PROYECTOS_POR_FECHA = PROYECTOS.map((p) => ({ ...p, ...parseFechaProyecto(p.fecha) }));
 
-/* --- Panel Macro --- */
+/* --- Panel Macro (5 Semáforos) --- */
 const SEMAFORO = [
   { 
     area: "Eventos", estado: "Óptimo", detalle: "3 de 3 hitos on-time este trimestre", color: CHART.emerald, text: "text-emerald-400", bg: "rgba(16,185,129,0.14)",
@@ -119,7 +122,6 @@ const KPI_PROYECTOS = {
   tiempoCierre: { value: 18, suffix: " días", delta: "-3 días", trend: "down" },
 };
 
-// ESTA ES LA VARIABLE QUE BORRASTE EN TU COPY/PASTE
 const DISTRIBUCION_POR_AREA = [
   { name: "Eventos", value: PROYECTOS.filter((p) => p.area === "Eventos").length, color: AREA_COLOR.Eventos },
   { name: "Marketing", value: PROYECTOS.filter((p) => p.area === "Marketing").length, color: AREA_COLOR.Marketing },
@@ -304,7 +306,7 @@ function KpiCard({ Icon, label, value, suffix, delta, trend }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Drawer / Slide-over "Ver Acta"                                     */
+/* Drawer / Slide-over "Ver Acta" (PANEL DIVIDIDO: FICHA Y RESUMEN)   */
 /* ------------------------------------------------------------------ */
 
 function ActaDrawer({ proyecto, onClose }) {
@@ -312,7 +314,7 @@ function ActaDrawer({ proyecto, onClose }) {
 
   return (
     <div
-      className={`fixed inset-0 z-50 ${abierto ? "pointer-events-auto" : "pointer-events-none"}`}
+      className={`fixed inset-0 z-50 flex ${abierto ? "pointer-events-auto" : "pointer-events-none"}`}
       aria-hidden={!abierto}
     >
       <div
@@ -323,104 +325,313 @@ function ActaDrawer({ proyecto, onClose }) {
       />
 
       <div
-        className={`absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-zinc-800 shadow-2xl transition-transform duration-300 ease-out ${
-          abierto ? "translate-x-0" : "translate-x-full"
+        className={`relative flex h-full w-full transition-transform duration-300 ease-out ${
+          abierto ? "translate-x-0" : "-translate-x-full"
         }`}
-        style={{ backgroundColor: PANEL }}
-        role="dialog"
-        aria-modal="true"
       >
+        {/* PANEL IZQUIERDO: Ficha de Datos Densa (Tipo Formulario) */}
         {proyecto && (
-          <>
-            <div className="flex items-start justify-between gap-4 border-b border-zinc-800 px-6 py-5 shrink-0">
-              <div className="min-w-0">
-                <p className="font-mono text-xs text-zinc-500">{proyecto.id || "PRJ-XXX"}</p>
-                <h2 className="mt-1 text-lg font-semibold text-zinc-100">{proyecto.nombre}</h2>
+          <div className="hidden lg:flex flex-1 flex-col justify-center p-8 pointer-events-none overflow-y-auto">
+            <div className="max-w-4xl w-full mx-auto pointer-events-auto my-auto">
+              
+              <div className="rounded-xl border border-zinc-800 p-8 shadow-2xl bg-zinc-950/80 backdrop-blur-xl flex flex-col gap-6">
+                
+                {/* Título */}
+                <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
+                  <h2 className="text-2xl font-bold text-zinc-100 uppercase tracking-wide">Ficha Técnica Operativa</h2>
+                  <p className="font-mono text-xs text-zinc-500">DOC-REF: {proyecto.id}</p>
+                </div>
+
+                {/* Sección 1: Datos Generales */}
+                <div>
+                  <div className="bg-blue-900/20 border border-blue-500/30 px-3 py-1.5 mb-3 rounded">
+                    <h3 className="text-xs font-bold text-blue-400 uppercase tracking-widest">Información General</h3>
+                  </div>
+                  <div className="grid grid-cols-12 gap-3">
+                    <div className="col-span-8 flex flex-col">
+                      <label className="text-[10px] text-zinc-500 uppercase mb-1">Nombre del Proyecto</label>
+                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-200">{proyecto.nombre}</div>
+                    </div>
+                    <div className="col-span-4 flex flex-col">
+                      <label className="text-[10px] text-zinc-500 uppercase mb-1">Área Ejecutora</label>
+                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-200 flex items-center gap-2">
+                        <span className={`h-2 w-2 rounded-full ${areaClasses(proyecto.area).dot}`} /> {proyecto.area}
+                      </div>
+                    </div>
+                    <div className="col-span-12 flex flex-col">
+                      <label className="text-[10px] text-zinc-500 uppercase mb-1">Descripción / Alcance</label>
+                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-400 min-h-[60px]">
+                        [Pendiente de extracción de Word: Párrafo de justificación del acta]
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sección 2: Logística y Tiempos */}
+                <div>
+                  <div className="bg-emerald-900/20 border border-emerald-500/30 px-3 py-1.5 mb-3 rounded">
+                    <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Planificación y Recursos</h3>
+                  </div>
+                  <div className="grid grid-cols-12 gap-3">
+                    <div className="col-span-4 flex flex-col">
+                      <label className="text-[10px] text-zinc-500 uppercase mb-1">Fecha de Ejecución</label>
+                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-200">{proyecto.fecha}</div>
+                    </div>
+                    <div className="col-span-4 flex flex-col">
+                      <label className="text-[10px] text-zinc-500 uppercase mb-1">Sede / Locación</label>
+                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-200">Centro de Convenciones PE</div>
+                    </div>
+                    <div className="col-span-4 flex flex-col">
+                      <label className="text-[10px] text-zinc-500 uppercase mb-1">Staff Requerido</label>
+                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-200">12 Voluntarios</div>
+                    </div>
+                    <div className="col-span-6 flex flex-col">
+                      <label className="text-[10px] text-zinc-500 uppercase mb-1">Líder Responsable</label>
+                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-200">{proyecto.responsable}</div>
+                    </div>
+                    <div className="col-span-6 flex flex-col">
+                      <label className="text-[10px] text-zinc-500 uppercase mb-1">Equipo de Apoyo</label>
+                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-400 italic">Extrayendo de tabla de asistentes...</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sección 3: Control de Entregables */}
+                <div>
+                  <div className="bg-amber-900/20 border border-amber-500/30 px-3 py-1.5 mb-3 rounded">
+                    <h3 className="text-xs font-bold text-amber-400 uppercase tracking-widest">Control de Entregables (KPIs)</h3>
+                  </div>
+                  <div className="grid grid-cols-12 gap-3">
+                    <div className="col-span-8">
+                      <label className="text-[10px] text-zinc-500 uppercase mb-1">HITO OPERATIVO</label>
+                    </div>
+                    <div className="col-span-4">
+                      <label className="text-[10px] text-zinc-500 uppercase mb-1">ESTADO DE AVANCE</label>
+                    </div>
+                    
+                    <div className="col-span-8 border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-400">
+                      Confirmación de aforo final
+                    </div>
+                    <div className="col-span-4 border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-400 flex items-center justify-center">
+                      PENDIENTE
+                    </div>
+                    
+                    <div className="col-span-8 border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-400">
+                      Gestión de permisos internos
+                    </div>
+                    <div className="col-span-4 border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-400 flex items-center justify-center">
+                      EN PROCESO
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pie de firma / Validación */}
+                <div className="mt-4 pt-4 border-t border-zinc-800 flex items-center gap-3">
+                  <div className="flex h-5 w-5 items-center justify-center rounded border border-blue-500 bg-blue-500/20">
+                    <CheckCircle2 className="h-3 w-3 text-blue-400" />
+                  </div>
+                  <p className="text-[10px] text-zinc-500 leading-tight">
+                    Este documento será validado y autocompletado automáticamente contra el diccionario maestro de Cinergia una vez que el motor de Python procese el archivo .docx de origen.
+                  </p>
+                </div>
+
               </div>
-              <button
-                onClick={onClose}
-                aria-label="Cerrar panel"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 transition-colors hover:border-zinc-700 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
             </div>
-
-            <div className="flex-1 overflow-y-auto px-6 py-6">
-              <div className="mb-6 flex items-center gap-3">
-                <StatusBadge estado={proyecto.estado || "En Evaluación"} />
-                <span className="flex items-center gap-1.5 text-xs text-zinc-500">
-                  <span className={`h-1.5 w-1.5 rounded-full ${areaClasses(proyecto.area).dot}`} />
-                  <span className={areaClasses(proyecto.area).text}>{proyecto.area}</span>
-                </span>
-              </div>
-
-              <div className="mb-6 grid grid-cols-2 gap-3">
-                <div className="rounded-lg border border-zinc-800 p-3">
-                  <p className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-zinc-500">
-                    <CalendarIcon className="h-3.5 w-3.5" /> Fecha
-                  </p>
-                  <p className="mt-1.5 text-sm font-medium text-zinc-200">{proyecto.fecha}</p>
-                </div>
-                <div className="rounded-lg border border-zinc-800 p-3">
-                  <p className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-zinc-500">
-                    <Users className="h-3.5 w-3.5" /> Responsable
-                  </p>
-                  <p className="mt-1.5 truncate text-sm font-medium text-zinc-200">{proyecto.responsable}</p>
-                </div>
-                <div className="rounded-lg border border-zinc-800 p-3">
-                  <p className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-zinc-500">
-                    <MapPin className="h-3.5 w-3.5" /> Sede
-                  </p>
-                  <p className="mt-1.5 text-sm font-medium text-zinc-200">Centro de Convenciones PE</p>
-                </div>
-                <div className="rounded-lg border border-zinc-800 p-3">
-                  <p className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-zinc-500">
-                    <DollarSign className="h-3.5 w-3.5" /> Presupuesto
-                  </p>
-                  <p className="mt-1.5 text-sm font-medium text-zinc-200">S/ 18,400</p>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-zinc-200">
-                  <ClipboardList className="h-4 w-4 text-blue-500" /> Resumen del Acta
-                </h3>
-                <p className="text-sm leading-relaxed text-zinc-400">
-                  Reunión de seguimiento correspondiente al proyecto <strong className="text-zinc-300">{proyecto.nombre}</strong>. Se
-                  revisó el avance de los entregables por área, se validaron los compromisos pendientes y se
-                  actualizó el cronograma general. La próxima revisión queda sujeta a la disponibilidad de la
-                  Directiva PE.
-                </p>
-              </div>
-
-              <div>
-                <h3 className="mb-3 text-sm font-semibold text-zinc-200">Compromisos</h3>
-                <ul className="flex flex-col gap-2.5">
-                  {[
-                    "Confirmar aforo final con el recinto",
-                    "Cerrar contrato con sponsors pendientes",
-                    "Publicar cronograma detallado al equipo",
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-400">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            <div className="border-t border-zinc-800 px-6 py-4 shrink-0">
-              <button
-                onClick={onClose}
-                className="w-full rounded-lg border border-zinc-800 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
-              >
-                Cerrar panel
-              </button>
-            </div>
-          </>
+          </div>
         )}
+
+        {/* PANEL DERECHO: Resumen Compacto (Sin cuadrícula de datos) */}
+        <div
+          className="flex h-full w-full max-w-sm flex-col border-l border-zinc-800 shadow-2xl shrink-0 ml-auto"
+          style={{ backgroundColor: PANEL }}
+          role="dialog"
+          aria-modal="true"
+        >
+          {proyecto && (
+            <>
+              <div className="flex items-start justify-between gap-4 border-b border-zinc-800 px-6 py-5 shrink-0">
+                <div>
+                  <p className="font-mono text-xs text-zinc-500">Documento Legal</p>
+                  <h2 className="mt-1 text-lg font-semibold text-zinc-100 truncate w-48">{proyecto.nombre}</h2>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 hover:text-zinc-100 transition-colors focus-visible:outline-none"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-6 py-6">
+                <div className="mb-6 flex items-center gap-3">
+                  <StatusBadge estado={proyecto.estado || "En Evaluación"} />
+                </div>
+
+                <div className="mb-6">
+                  <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-200">
+                    <ClipboardList className="h-4 w-4 text-blue-500" /> Resumen del Acta
+                  </h3>
+                  <p className="text-sm leading-relaxed text-zinc-400">
+                    Reunión de seguimiento correspondiente al proyecto <strong className="text-zinc-300">{proyecto.nombre}</strong>. Se
+                    revisó el avance de los entregables por área, se validaron los compromisos pendientes y se
+                    actualizó el cronograma general. La próxima revisión queda sujeta a la disponibilidad de la
+                    Directiva PE.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold text-zinc-200">Compromisos</h3>
+                  <ul className="flex flex-col gap-2.5">
+                    {[
+                      "Confirmar aforo final con el recinto",
+                      "Gestión de permisos internos",
+                      "Publicar cronograma detallado al equipo",
+                    ].map((item, i) => (
+                      <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-400">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="border-t border-zinc-800 px-6 py-4 shrink-0">
+                <button
+                  onClick={onClose}
+                  className="w-full rounded-lg border border-zinc-800 py-2.5 text-sm font-medium text-zinc-300 hover:border-zinc-700 hover:text-zinc-100 transition-colors focus-visible:outline-none"
+                >
+                  Cerrar panel
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* NUEVO: Drawer de Creación e Importación de Proyecto                */
+/* ------------------------------------------------------------------ */
+
+function NuevoProyectoDrawer({ abierto, onClose }) {
+  return (
+    <div className={`fixed inset-0 z-50 ${abierto ? "pointer-events-auto" : "pointer-events-none"}`} aria-hidden={!abierto}>
+      <div onClick={onClose} className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${abierto ? "opacity-100" : "opacity-0"}`} />
+
+      <div className={`absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-zinc-800 shadow-2xl transition-transform duration-300 ease-out ${abierto ? "translate-x-0" : "translate-x-full"}`} style={{ backgroundColor: PANEL }} role="dialog" aria-modal="true">
+        
+        <div className="flex items-start justify-between gap-4 border-b border-zinc-800 px-6 py-5 shrink-0">
+          <div className="min-w-0 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
+              <Plus className="h-5 w-5 text-blue-500" />
+            </div>
+            <div>
+              <p className="font-mono text-xs text-zinc-500">Gestor Operativo</p>
+              <h2 className="mt-0.5 text-lg font-semibold text-zinc-100">Registrar Proyecto</h2>
+            </div>
+          </div>
+          <button onClick={onClose} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-100">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-6">
+          
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-zinc-200">Importación de Acta (Parser)</h3>
+            <p className="mb-4 text-xs text-zinc-500">Sube el documento Word (.docx) para que el motor de Python extraiga los datos y autocomplete el formulario.</p>
+            
+            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-zinc-800 border-dashed rounded-xl cursor-pointer hover:bg-zinc-900/50 hover:border-blue-500/50 transition-colors bg-zinc-900/20 group">
+              <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                <UploadCloud className="w-8 h-8 mb-3 text-zinc-500 group-hover:text-blue-500 transition-colors" />
+                <p className="mb-1 text-sm text-zinc-400"><span className="font-semibold text-zinc-200">Haz clic para subir</span> o arrastra el archivo</p>
+                <p className="text-xs text-zinc-500">Solo archivos .docx soportados</p>
+              </div>
+              <input 
+                type="file" 
+                className="hidden" 
+                accept=".docx" 
+                onChange={async (e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+
+                  // 1. Preparamos el paquete
+                  const formData = new FormData();
+                  formData.append("file", file);
+
+                  try {
+                    // 2. Avisamos al usuario
+                    alert("Enviando acta al motor de Ingestión...");
+                    
+                    // 3. Disparamos la petición al servidor Python local
+                    const response = await fetch("http://localhost:8000/api/upload-acta", {
+                      method: "POST",
+                      body: formData,
+                    });
+
+                    if (response.ok) {
+                      const result = await response.json();
+                      alert("✅ ¡Éxito! " + result.message);
+                      // Recargamos la página para que React vuelva a consultar Supabase y muestre el nuevo proyecto
+                      window.location.reload(); 
+                    } else {
+                      const errorData = await response.json();
+                      alert("❌ Error del servidor: " + errorData.detail);
+                    }
+                  } catch (error) {
+                    alert("❌ Error crítico de conexión. ¿Está encendido el servidor Python (FastAPI)? Detalle: " + error.message);
+                  }
+                }} 
+              />
+            </label>
+          </div>
+
+          <div className="h-px w-full bg-zinc-800/60" />
+
+          <div>
+            <h3 className="mb-4 text-sm font-semibold text-zinc-200">Datos Manuales</h3>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-zinc-400">Nombre del Proyecto</label>
+                <input type="text" placeholder="Ej. Congreso Cinergia 2026..." className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50" />
+              </div>
+              
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-zinc-400">Área Responsable</label>
+                <select className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50">
+                  <option value="">Selecciona un área...</option>
+                  {AREAS_DISPONIBLES.filter(a => a !== "Todas").map(area => (
+                    <option key={area} value={area}>{area}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-zinc-400">Responsable</label>
+                  <input type="text" placeholder="Nombre completo" className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-zinc-400">Fecha Estimada</label>
+                  <input type="date" className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div className="border-t border-zinc-800 px-6 py-4 shrink-0 flex gap-3">
+          <button onClick={onClose} className="flex-1 rounded-lg border border-zinc-800 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-900 transition-colors">
+            Cancelar
+          </button>
+          <button className="flex-1 rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20 transition-colors">
+            Guardar Proyecto
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -869,24 +1080,25 @@ function VistaPanelMacro({ onVerActa, onAbrirSemaforo }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Vista 2 · Portafolio Operativo (Directorio)                         */
+/* Vista 2 · Portafolio Operativo ACTUALIZADO PARA RECIBIR BASE DE DATOS */
 /* ------------------------------------------------------------------ */
 
-function VistaPortafolio({ query, setQuery, onVerActa }) {
+function VistaPortafolio({ query, setQuery, onVerActa, onAgregarProyecto, datosProyectos }) {
   const [areaFiltro, setAreaFiltro] = useState("Todas");
 
-  const proyectos = useMemo(() => {
+  const proyectosFiltrados = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return PROYECTOS.filter((p) => {
+    // Filtramos los datos inyectados por prop
+    return datosProyectos.filter((p) => {
       const matchArea = areaFiltro === "Todas" || p.area === areaFiltro;
       const matchQuery =
         !q ||
         p.nombre.toLowerCase().includes(q) ||
         p.id.toLowerCase().includes(q) ||
-        p.responsable.toLowerCase().includes(q);
+        (p.responsable && p.responsable.toLowerCase().includes(q));
       return matchArea && matchQuery;
     });
-  }, [query, areaFiltro]);
+  }, [query, areaFiltro, datosProyectos]);
 
   return (
     <div>
@@ -896,40 +1108,50 @@ function VistaPortafolio({ query, setQuery, onVerActa }) {
         subtitle="Directorio en tiempo real de todos los proyectos activos, finalizados y en planificación dentro de Cinergia."
       />
 
-      <div className="mb-6 flex flex-wrap items-center gap-2">
-        <div className="mr-1 flex items-center gap-1.5 text-xs text-zinc-500">
-          <Filter className="h-3.5 w-3.5" />
-          Filtrar por área
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800/50 pb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="mr-1 flex items-center gap-1.5 text-xs text-zinc-500">
+            <Filter className="h-3.5 w-3.5" />
+            Filtrar por área
+          </div>
+          {AREAS_DISPONIBLES.map((a) => {
+            const active = areaFiltro === a;
+            return (
+              <button
+                key={a}
+                onClick={() => setAreaFiltro(a)}
+                className={`rounded-full border px-3 py-1.5 font-mono text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 ${
+                  active
+                    ? "border-blue-600 bg-blue-600 text-white"
+                    : "border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-200"
+                }`}
+              >
+                {a}
+              </button>
+            );
+          })}
         </div>
-        {AREAS_DISPONIBLES.map((a) => {
-          const active = areaFiltro === a;
-          return (
-            <button
-              key={a}
-              onClick={() => setAreaFiltro(a)}
-              className={`rounded-full border px-3 py-1.5 font-mono text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 ${
-                active
-                  ? "border-blue-600 bg-blue-600 text-white"
-                  : "border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-200"
-              }`}
-            >
-              {a}
-            </button>
-          );
-        })}
+
+        <button 
+          onClick={onAgregarProyecto}
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 shadow-lg shadow-blue-500/20"
+        >
+          <Plus className="h-4 w-4" />
+          Agregar Proyecto
+        </button>
       </div>
 
       {(query || areaFiltro !== "Todas") && (
         <p className="mb-4 font-mono text-xs text-zinc-500">
-          {proyectos.length} resultado{proyectos.length !== 1 ? "s" : ""}
+          {proyectosFiltrados.length} resultado{proyectosFiltrados.length !== 1 ? "s" : ""}
           {query ? ` para “${query}”` : ""}
           {areaFiltro !== "Todas" ? ` · ${areaFiltro}` : ""}
         </p>
       )}
 
-      {proyectos.length > 0 ? (
+      {proyectosFiltrados.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {proyectos.map((p) => (
+          {proyectosFiltrados.map((p) => (
             <ProjectCard key={p.id} p={p} onVerActa={onVerActa} />
           ))}
         </div>
@@ -1075,51 +1297,55 @@ function VistaCalendario({ onVerActa }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Vista 4 · Analítica de Proyectos (ISOLADA A 3 ÁREAS)               */
+/* Vista 4 · Analítica de Proyectos (CONECTADA A SUPABASE)            */
 /* ------------------------------------------------------------------ */
 
 function VistaAnaliticaProyectos() {
   const [areaSeleccionada, setAreaSeleccionada] = useState("Todas");
+  const [datosTiempos, setDatosTiempos] = useState([]);
 
-  // Pipeline exclusivo para el núcleo operativo duro
-  const pipelinesPorArea = {
-    Todas: [
-      { etapa: "Planificación Base", dias: 9 },
-      { etapa: "Aprobación Directiva", dias: 12 },
-      { etapa: "Ejecución Activa", dias: 15 },
-      { etapa: "Revisión / QA", dias: 6 },
-      { etapa: "Cierre Operativo", dias: 18 },
-    ],
-    Eventos: [
-      { etapa: "Planificación Base", dias: 14 },
-      { etapa: "Aprobación Directiva", dias: 18 },
-      { etapa: "Ejecución Activa", dias: 20 },
-      { etapa: "Revisión / QA", dias: 8 },
-      { etapa: "Cierre Operativo", dias: 22 },
-    ],
-    Marketing: [
-      { etapa: "Planificación Base", dias: 5 },
-      { etapa: "Aprobación Directiva", dias: 4 },
-      { etapa: "Ejecución Activa", dias: 8 },
-      { etapa: "Revisión / QA", dias: 2 },
-      { etapa: "Cierre Operativo", dias: 10 },
-    ],
-    Proyectos: [
-      { etapa: "Planificación Base", dias: 7 },
-      { etapa: "Aprobación Directiva", dias: 9 },
-      { etapa: "Ejecución Activa", dias: 10 },
-      { etapa: "Revisión / QA", dias: 5 },
-      { etapa: "Cierre Operativo", dias: 12 },
-    ]
-  };
+  // Extraer los cálculos matemáticos desde la vista de Supabase
+  useEffect(() => {
+    async function fetchTiempos() {
+      const { data, error } = await supabase.from('vista_tiempos_etapas').select('*');
+      if (!error && data) {
+        setDatosTiempos(data);
+      }
+    }
+    fetchTiempos();
+  }, []);
 
-  // Restringimos la dona para que solo muestre las 3 áreas nucleares
+  // Motor de cálculo dinámico para el gráfico
+  const pipelineActivo = useMemo(() => {
+    // 1. Filtrar por el área seleccionada
+    const filtrados = areaSeleccionada === "Todas" 
+      ? datosTiempos 
+      : datosTiempos.filter(d => d.area === areaSeleccionada);
+      
+    // 2. Agrupar por etapa y sumar los días
+    const agrupados = filtrados.reduce((acc, curr) => {
+      if (!acc[curr.etapa]) {
+        acc[curr.etapa] = { totalDias: 0, count: 0 };
+      }
+      acc[curr.etapa].totalDias += curr.dias_transcurridos;
+      acc[curr.etapa].count += 1;
+      return acc;
+    }, {});
+
+    // 3. Definir el orden lógico del pipeline y promediar
+    const orden = ["Planificación Base", "Aprobación Directiva", "Ejecución Activa", "Revisión / QA", "Cierre Operativo"];
+    
+    return orden.map(etapa => ({
+      etapa,
+      dias: agrupados[etapa] ? Math.round(agrupados[etapa].totalDias / agrupados[etapa].count) : 0
+    }));
+  }, [datosTiempos, areaSeleccionada]);
+
   const distribucionAnalitica = DISTRIBUCION_POR_AREA.filter((d) => 
     ["Eventos", "Marketing", "Proyectos"].includes(d.name)
   );
 
-  const pipelineActivo = pipelinesPorArea[areaSeleccionada] || pipelinesPorArea["Todas"];
-  const colorActivo = AREA_COLOR[areaSeleccionada] || CHART.emerald;
+  const colorActivo = areaSeleccionada === "Todas" ? CHART.emerald : (AREA_COLOR[areaSeleccionada] || CHART.emerald);
 
   return (
     <div>
@@ -1213,7 +1439,7 @@ function VistaAnaliticaProyectos() {
             </ResponsiveContainer>
           </div>
           <p className="mt-3 text-xs text-zinc-500">
-            Filtrando métricas para: <span className="text-zinc-200 font-medium">{areaSeleccionada}</span>
+            Filtrando métricas reales para: <span className="text-zinc-200 font-medium">{areaSeleccionada}</span>
           </p>
         </div>
 
@@ -1347,7 +1573,7 @@ function VistaAnaliticaMarketing() {
 }
 
 /* ------------------------------------------------------------------ */
-/* App                                                                */
+/* App PRINCIPAL: EL CEREBRO DE LA OPERACIÓN                          */
 /* ------------------------------------------------------------------ */
 
 export default function CinergiaOS() {
@@ -1355,6 +1581,45 @@ export default function CinergiaOS() {
   const [query, setQuery] = useState("");
   const [actaAbierta, setActaAbierta] = useState(null);
   const [semaforoAbierto, setSemaforoAbierto] = useState(null);
+  const [creandoProyecto, setCreandoProyecto] = useState(false);
+  
+  // ESTADO PARA LA BASE DE DATOS REAL
+  const [proyectosDB, setProyectosDB] = useState([]);
+  const [cargando, setCargando] = useState(true);
+
+  // FETCH A SUPABASE
+  useEffect(() => {
+    async function fetchProyectos() {
+      try {
+        const { data, error } = await supabase
+          .from('proyectos')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        if (data) {
+          const proyectosFormateados = data.map(p => ({
+            id: p.id,
+            nombre: p.nombre,
+            area: p.area,
+            estado: p.estado_actual,
+            fecha: "10 Oct 2026", // Sustituir luego por cálculo temporal real
+            responsable: p.responsable,
+            sede: p.sede,
+            staff_requerido: p.staff_requerido
+          }));
+          setProyectosDB(proyectosFormateados);
+        }
+      } catch (error) {
+        console.error("Error al cargar proyectos:", error.message);
+      } finally {
+        setCargando(false);
+      }
+    }
+
+    fetchProyectos();
+  }, []);
 
   const placeholders = {
     macro: "Buscar en el panel macro…",
@@ -1363,6 +1628,10 @@ export default function CinergiaOS() {
     "analitica-proyectos": "Buscar métricas de proyectos…",
     "analitica-marketing": "Buscar métricas de marketing…",
   };
+
+  // Si la BD está vacía, usamos el cascarón falso para que no se vea feo. 
+  // Si tiene datos, usamos la BD real.
+  const datosParaMostrar = proyectosDB.length > 0 ? proyectosDB : PROYECTOS;
 
   return (
     <div 
@@ -1380,9 +1649,18 @@ export default function CinergiaOS() {
 
         <main className="flex-1 overflow-y-auto px-8 py-8">
           {vistaActiva === "macro" && <VistaPanelMacro onVerActa={setActaAbierta} onAbrirSemaforo={setSemaforoAbierto} />}
+          
+          {/* AQUÍ INYECTAMOS LOS DATOS AL HIJO */}
           {vistaActiva === "portafolio" && (
-            <VistaPortafolio query={query} setQuery={setQuery} onVerActa={setActaAbierta} />
+            <VistaPortafolio 
+              query={query} 
+              setQuery={setQuery} 
+              onVerActa={setActaAbierta} 
+              onAgregarProyecto={() => setCreandoProyecto(true)} 
+              datosProyectos={datosParaMostrar} 
+            />
           )}
+          
           {vistaActiva === "calendario" && <VistaCalendario onVerActa={setActaAbierta} />}
           {vistaActiva === "analitica-proyectos" && <VistaAnaliticaProyectos />}
           {vistaActiva === "analitica-marketing" && <VistaAnaliticaMarketing />}
@@ -1391,6 +1669,7 @@ export default function CinergiaOS() {
 
       <ActaDrawer proyecto={actaAbierta} onClose={() => setActaAbierta(null)} />
       <SemaforoDrawer data={semaforoAbierto} onClose={() => setSemaforoAbierto(null)} />
+      <NuevoProyectoDrawer abierto={creandoProyecto} onClose={() => setCreandoProyecto(false)} />
     </div>
   );
 }
