@@ -567,7 +567,7 @@ function NuevoProyectoDrawer({ abierto, onClose }) {
                     alert("Enviando acta al motor de Ingestión...");
                     
                     // 3. Disparamos la petición al servidor Python local
-                    const response = await fetch("http://localhost:8000/api/upload-acta", {
+                    const response = await fetch("https://cinergia-os-frontend.onrender.com/api/upload-acta", {
                       method: "POST",
                       body: formData,
                     });
