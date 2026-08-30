@@ -854,9 +854,22 @@ function Sidebar({ vistaActiva, setVistaActiva }) {
   );
 }
 
-function TopBar({ query, setQuery, placeholder }) {
+/* ------------------------------------------------------------------ */
+/* TopBar Dinámico y Funcional                                        */
+/* ------------------------------------------------------------------ */
+
+function TopBar({ query, setQuery, placeholder, onLogout, proyectos }) {
   const [showNotif, setShowNotif] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // Generamos las notificaciones dinámicamente basadas en los proyectos reales de Supabase
+  const notificacionesDinamicas = proyectos.slice(0, 4).map((p, idx) => ({
+    id: p.id,
+    titulo: `Nuevo: ${p.nombre}`,
+    detalle: `Registrado en el área de ${p.area} por ${p.responsable}.`,
+    color: idx === 0 ? "text-emerald-400" : "text-blue-400",
+    dot: idx === 0 ? "bg-emerald-500" : "bg-blue-500"
+  }));
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-white/5 px-6 bg-transparent z-10">
@@ -870,41 +883,46 @@ function TopBar({ query, setQuery, placeholder }) {
           className="w-full bg-transparent text-sm text-zinc-300 placeholder-zinc-600 outline-none"
         />
         {query ? (
-          <button
-            onClick={() => setQuery("")}
-            className="shrink-0 font-mono text-xs text-zinc-600 transition-colors hover:text-zinc-300"
-          >
-            ✕
-          </button>
+          <button onClick={() => setQuery("")} className="shrink-0 font-mono text-xs text-zinc-600 hover:text-zinc-300">✕</button>
         ) : (
-          <kbd className="hidden shrink-0 rounded border border-zinc-800 px-1.5 py-0.5 font-mono text-xs text-zinc-600 sm:inline-block">
-            ⌘K
-          </kbd>
+          <kbd className="hidden shrink-0 rounded border border-zinc-800 px-1.5 py-0.5 font-mono text-xs text-zinc-600 sm:inline-block">⌘K</kbd>
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-4">
-        <div className="relative">
+      <div className="flex shrink-0 items-center gap-4 relative">
+        
+        {/* Campana de Notificaciones Dinámica */}
+        <div>
           <button 
-            onClick={() => setShowNotif(!showNotif)}
+            onClick={() => { setShowNotif(!showNotif); setShowUserMenu(false); }}
             className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800/60 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-100"
           >
             <Bell className="h-4 w-4" />
-            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />
+            {notificacionesDinamicas.length > 0 && (
+              <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+            )}
           </button>
 
           {showNotif && (
-            <div className="absolute right-0 top-full mt-2 w-72 rounded-xl border border-zinc-800 shadow-2xl z-50 p-4" style={{ backgroundColor: PANEL }}>
-              <h3 className="mb-3 text-sm font-semibold text-zinc-200">Alertas Recientes</h3>
-              <div className="flex flex-col gap-3">
-                <div className="flex items-start gap-2">
-                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />
-                  <p className="text-xs text-zinc-400"><strong className="text-zinc-200">Logística:</strong> Aforo por confirmar para Congreso Cinergia 2026.</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
-                  <p className="text-xs text-zinc-400"><strong className="text-zinc-200">Marketing:</strong> Retraso leve en entregable de campaña publicitaria.</p>
-                </div>
+            <div className="absolute right-32 top-full mt-2 w-80 rounded-xl border border-zinc-800 shadow-2xl z-50 p-4" style={{ backgroundColor: PANEL }}>
+              <div className="flex items-center justify-between mb-3 border-b border-zinc-800 pb-2">
+                <h3 className="text-sm font-semibold text-zinc-200">Actividad Reciente</h3>
+                <span className="text-[10px] font-mono text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">En vivo</span>
+              </div>
+              <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1">
+                {notificacionesDinamicas.length === 0 ? (
+                  <p className="text-xs text-zinc-500 text-center py-4">No hay proyectos registrados aún.</p>
+                ) : (
+                  notificacionesDinamicas.map(notif => (
+                    <div key={notif.id} className="flex items-start gap-3 rounded-lg hover:bg-zinc-900/50 p-2 transition-colors">
+                      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notif.dot}`} />
+                      <div>
+                        <p className={`text-xs font-semibold ${notif.color}`}>{notif.titulo}</p>
+                        <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">{notif.detalle}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -912,9 +930,10 @@ function TopBar({ query, setQuery, placeholder }) {
 
         <div className="h-6 w-px bg-zinc-800/60" />
 
-        <div className="relative">
+        {/* Menú de Usuario */}
+        <div>
           <button 
-            onClick={() => setShowUserMenu(!showUserMenu)}
+            onClick={() => { setShowUserMenu(!showUserMenu); setShowNotif(false); }}
             className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-zinc-900/50"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-emerald-500">
@@ -928,19 +947,26 @@ function TopBar({ query, setQuery, placeholder }) {
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-zinc-800 shadow-2xl z-50 p-2" style={{ backgroundColor: PANEL }}>
-              <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-zinc-400 transition-colors hover:bg-zinc-800/50 hover:text-zinc-100">
+            <div className="absolute right-24 top-full mt-2 w-48 rounded-xl border border-zinc-800 shadow-2xl z-50 p-2" style={{ backgroundColor: PANEL }}>
+              <button 
+                onClick={() => alert("Módulo de configuración en construcción. Centraliza los proyectos primero.")}
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-zinc-400 transition-colors hover:bg-zinc-800/50 hover:text-zinc-100"
+              >
                 <Settings2 className="h-4 w-4" /> Configuración OS
               </button>
-              <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-zinc-400 transition-colors hover:bg-zinc-800/50 hover:text-zinc-100">
+              <button 
+                onClick={() => alert("Gestión de roles bloqueada hasta tener adopción del 100% de la directiva.")}
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-zinc-400 transition-colors hover:bg-zinc-800/50 hover:text-zinc-100"
+              >
                 <ShieldCheck className="h-4 w-4" /> Accesos de Área
               </button>
             </div>
           )}
         </div>
 
+        {/* Botón de Desconexión Real */}
         <button 
-          onClick={() => alert("Cerrando conexión segura con Cinergia OS...")}
+          onClick={onLogout}
           className="flex items-center gap-1.5 rounded-lg border border-red-900/30 px-3 py-2 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 bg-red-500/5"
         >
           <LogOut className="h-3.5 w-3.5" />
@@ -1573,22 +1599,141 @@ function VistaAnaliticaMarketing() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Pantalla de Autenticación (Login) con Lluvia Digital               */
+/* ------------------------------------------------------------------ */
+
+function PantallaLogin({ onLogin }) {
+  const [usuario, setUsuario] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(false);
+
+  // Generamos 20 estelas con posiciones y velocidades aleatorias
+  const estelas = useMemo(() => {
+    return Array.from({ length: 20 }).map((_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      animationDuration: `${Math.random() * 3 + 2}s`,
+      animationDelay: `${Math.random() * 2}s`,
+      opacity: Math.random() * 0.5 + 0.2
+    }));
+  }, []);
+
+  const handleIngreso = (e) => {
+    e.preventDefault();
+    if (usuario === "directiva.pe" && password === "cinergia2026") {
+      onLogin();
+    } else {
+      setError(true);
+      setTimeout(() => setError(false), 3000);
+    }
+  };
+
+  return (
+    <div className="relative flex h-screen w-full items-center justify-center bg-zinc-950 px-4 overflow-hidden"
+         style={{ backgroundImage: "radial-gradient(#1c1c1f 1px, transparent 1px)", backgroundSize: "28px 28px" }}>
+      
+      {/* Estilos inyectados para la animación de la lluvia */}
+      <style>
+        {`
+          @keyframes digitalRain {
+            0% { transform: translateY(-100vh); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(100vh); opacity: 0; }
+          }
+          .estela {
+            position: absolute;
+            top: -100px;
+            width: 1px;
+            height: 120px;
+            background: linear-gradient(transparent, rgba(59, 130, 246, 0.8), rgba(16, 185, 129, 0.8));
+            animation: digitalRain linear infinite;
+            z-index: 0;
+          }
+        `}
+      </style>
+
+      {/* Renderizado de las estelas */}
+      <div className="absolute inset-0 pointer-events-none">
+        {estelas.map((estela) => (
+          <div 
+            key={estela.id} 
+            className="estela"
+            style={{ 
+              left: estela.left, 
+              animationDuration: estela.animationDuration,
+              animationDelay: estela.animationDelay,
+              opacity: estela.opacity
+            }} 
+          />
+        ))}
+      </div>
+
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950/80 p-8 shadow-[0_0_50px_-12px_rgba(59,130,246,0.25)] backdrop-blur-xl">
+        <div className="mb-8 flex flex-col items-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-emerald-500 shadow-lg shadow-blue-500/20">
+            <span className="font-mono text-2xl font-bold text-white">C</span>
+          </div>
+          <h1 className="text-xl font-bold text-zinc-100 tracking-tight">CINERGIA OS</h1>
+          <p className="text-sm text-zinc-500">Centro de Mando Operativo</p>
+        </div>
+
+        <form onSubmit={handleIngreso} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-zinc-400">ID de Acceso (Usuario)</label>
+            <input 
+              type="text" 
+              value={usuario}
+              onChange={(e) => setUsuario(e.target.value)}
+              placeholder="Ej. directiva.pe" 
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 relative z-20" 
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-zinc-400">Clave de Seguridad</label>
+            <input 
+              type="password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••" 
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 relative z-20" 
+            />
+          </div>
+
+          {error && (
+            <div className="rounded-lg border border-red-900/30 bg-red-500/10 p-3 text-center text-xs text-red-400">
+              Credenciales inválidas. Acceso denegado.
+            </div>
+          )}
+
+          <button type="submit" className="mt-2 w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/20 transition-colors hover:bg-blue-500 relative z-20">
+            Ingresar al Sistema
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* App PRINCIPAL: EL CEREBRO DE LA OPERACIÓN                          */
 /* ------------------------------------------------------------------ */
 
 export default function CinergiaOS() {
+  const [estaAutenticado, setEstaAutenticado] = useState(false); // Estado de Login
   const [vistaActiva, setVistaActiva] = useState("macro");
   const [query, setQuery] = useState("");
   const [actaAbierta, setActaAbierta] = useState(null);
   const [semaforoAbierto, setSemaforoAbierto] = useState(null);
   const [creandoProyecto, setCreandoProyecto] = useState(false);
   
-  // ESTADO PARA LA BASE DE DATOS REAL
   const [proyectosDB, setProyectosDB] = useState([]);
   const [cargando, setCargando] = useState(true);
 
-  // FETCH A SUPABASE
   useEffect(() => {
+    // Solo hace el fetch si el usuario ya inició sesión
+    if (!estaAutenticado) return; 
+
     async function fetchProyectos() {
       try {
         const { data, error } = await supabase
@@ -1604,7 +1749,7 @@ export default function CinergiaOS() {
             nombre: p.nombre,
             area: p.area,
             estado: p.estado_actual,
-            fecha: "10 Oct 2026", // Sustituir luego por cálculo temporal real
+            fecha: "10 Oct 2026",
             responsable: p.responsable,
             sede: p.sede,
             staff_requerido: p.staff_requerido
@@ -1619,7 +1764,7 @@ export default function CinergiaOS() {
     }
 
     fetchProyectos();
-  }, []);
+  }, [estaAutenticado]);
 
   const placeholders = {
     macro: "Buscar en el panel macro…",
@@ -1629,9 +1774,12 @@ export default function CinergiaOS() {
     "analitica-marketing": "Buscar métricas de marketing…",
   };
 
-  // Si la BD está vacía, usamos el cascarón falso para que no se vea feo. 
-  // Si tiene datos, usamos la BD real.
   const datosParaMostrar = proyectosDB.length > 0 ? proyectosDB : PROYECTOS;
+
+  // Si no está logueado, bloquea la entrada y muestra el portal
+  if (!estaAutenticado) {
+    return <PantallaLogin onLogin={() => setEstaAutenticado(true)} />;
+  }
 
   return (
     <div 
@@ -1645,12 +1793,18 @@ export default function CinergiaOS() {
       <Sidebar vistaActiva={vistaActiva} setVistaActiva={setVistaActiva} />
 
       <div className="flex flex-1 flex-col overflow-hidden relative z-0">
-        <TopBar query={query} setQuery={setQuery} placeholder={placeholders[vistaActiva]} />
+        {/* AQUÍ ESTÁ EL EMPALME CORRECTO DEL TOPBAR */}
+        <TopBar 
+          query={query} 
+          setQuery={setQuery} 
+          placeholder={placeholders[vistaActiva]} 
+          onLogout={() => setEstaAutenticado(false)} 
+          proyectos={datosParaMostrar} 
+        />
 
         <main className="flex-1 overflow-y-auto px-8 py-8">
           {vistaActiva === "macro" && <VistaPanelMacro onVerActa={setActaAbierta} onAbrirSemaforo={setSemaforoAbierto} />}
           
-          {/* AQUÍ INYECTAMOS LOS DATOS AL HIJO */}
           {vistaActiva === "portafolio" && (
             <VistaPortafolio 
               query={query} 
