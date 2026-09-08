@@ -306,7 +306,7 @@ function KpiCard({ Icon, label, value, suffix, delta, trend }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Drawer / Slide-over "Ver Acta" (PANEL DIVIDIDO: FICHA Y RESUMEN)   */
+/* Drawer / Slide-over "Ver Acta" (ACTUALIZADO A SSOT)                */
 /* ------------------------------------------------------------------ */
 
 function ActaDrawer({ proyecto, onClose }) {
@@ -361,7 +361,7 @@ function ActaDrawer({ proyecto, onClose }) {
                     <div className="col-span-12 flex flex-col">
                       <label className="text-[10px] text-zinc-500 uppercase mb-1">Descripción / Alcance</label>
                       <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-400 min-h-[60px]">
-                        [Pendiente de extracción de Word: Párrafo de justificación del acta]
+                        [Pendiente de extracción: Resumen o Justificación extraída de la plantilla .docx]
                       </div>
                     </div>
                   </div>
@@ -382,45 +382,39 @@ function ActaDrawer({ proyecto, onClose }) {
                       <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-200">Centro de Convenciones PE</div>
                     </div>
                     <div className="col-span-4 flex flex-col">
-                      <label className="text-[10px] text-zinc-500 uppercase mb-1">Staff Requerido</label>
-                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-200">12 Voluntarios</div>
+                      <label className="text-[10px] text-zinc-500 uppercase mb-1">Aforo / Capacidad</label>
+                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-200">20-25 Personas</div>
                     </div>
                     <div className="col-span-6 flex flex-col">
-                      <label className="text-[10px] text-zinc-500 uppercase mb-1">Líder Responsable</label>
+                      <label className="text-[10px] text-zinc-500 uppercase mb-1">Responsables Directos</label>
                       <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-200">{proyecto.responsable}</div>
                     </div>
                     <div className="col-span-6 flex flex-col">
-                      <label className="text-[10px] text-zinc-500 uppercase mb-1">Equipo de Apoyo</label>
-                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-400 italic">Extrayendo de tabla de asistentes...</div>
+                      <label className="text-[10px] text-zinc-500 uppercase mb-1">Link de Participantes (Excel)</label>
+                      <div className="border border-zinc-800 bg-blue-900/10 px-3 py-2 rounded text-sm text-blue-400 hover:text-blue-300 underline cursor-pointer truncate transition-colors">
+                        https://onedrive.live.com/cinergia/directorio-asistentes-2026
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Sección 3: Control de Entregables */}
+                {/* Sección 3: Métricas de Éxito (KPIs Fijos) */}
                 <div>
                   <div className="bg-amber-900/20 border border-amber-500/30 px-3 py-1.5 mb-3 rounded">
-                    <h3 className="text-xs font-bold text-amber-400 uppercase tracking-widest">Control de Entregables (KPIs)</h3>
+                    <h3 className="text-xs font-bold text-amber-400 uppercase tracking-widest">Métricas de Éxito (KPIs Objetivo)</h3>
                   </div>
-                  <div className="grid grid-cols-12 gap-3">
-                    <div className="col-span-8">
-                      <label className="text-[10px] text-zinc-500 uppercase mb-1">HITO OPERATIVO</label>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between border border-zinc-800 bg-zinc-900/50 px-4 py-2.5 rounded-lg text-sm text-zinc-300">
+                      <span>Asistencia mínima garantizada</span>
+                      <span className="font-mono font-medium text-amber-400">≥ 25 pax</span>
                     </div>
-                    <div className="col-span-4">
-                      <label className="text-[10px] text-zinc-500 uppercase mb-1">ESTADO DE AVANCE</label>
+                    <div className="flex items-center justify-between border border-zinc-800 bg-zinc-900/50 px-4 py-2.5 rounded-lg text-sm text-zinc-300">
+                      <span>Nivel de satisfacción (Encuesta post-evento)</span>
+                      <span className="font-mono font-medium text-amber-400">≥ 75%</span>
                     </div>
-                    
-                    <div className="col-span-8 border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-400">
-                      Confirmación de aforo final
-                    </div>
-                    <div className="col-span-4 border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-400 flex items-center justify-center">
-                      PENDIENTE
-                    </div>
-                    
-                    <div className="col-span-8 border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-400">
-                      Gestión de permisos internos
-                    </div>
-                    <div className="col-span-4 border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-400 flex items-center justify-center">
-                      EN PROCESO
+                    <div className="flex items-center justify-between border border-zinc-800 bg-zinc-900/50 px-4 py-2.5 rounded-lg text-sm text-zinc-300">
+                      <span>Participación activa en dinámicas</span>
+                      <span className="font-mono font-medium text-amber-400">≥ 55%</span>
                     </div>
                   </div>
                 </div>
@@ -431,7 +425,7 @@ function ActaDrawer({ proyecto, onClose }) {
                     <CheckCircle2 className="h-3 w-3 text-blue-400" />
                   </div>
                   <p className="text-[10px] text-zinc-500 leading-tight">
-                    Este documento será validado y autocompletado automáticamente contra el diccionario maestro de Cinergia una vez que el motor de Python procese el archivo .docx de origen.
+                    Cinergia OS actúa como Fuente Única de Verdad (SSOT). Estos datos han sido extraídos automáticamente del acta original firmada. No pueden ser alterados desde esta interfaz.
                   </p>
                 </div>
 
@@ -440,7 +434,7 @@ function ActaDrawer({ proyecto, onClose }) {
           </div>
         )}
 
-        {/* PANEL DERECHO: Resumen Compacto (Sin cuadrícula de datos) */}
+        {/* PANEL DERECHO: Resumen Compacto */}
         <div
           className="flex h-full w-full max-w-sm flex-col border-l border-zinc-800 shadow-2xl shrink-0 ml-auto"
           style={{ backgroundColor: PANEL }}
@@ -469,23 +463,20 @@ function ActaDrawer({ proyecto, onClose }) {
 
                 <div className="mb-6">
                   <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-                    <ClipboardList className="h-4 w-4 text-blue-500" /> Resumen del Acta
+                    <ClipboardList className="h-4 w-4 text-blue-500" /> Resumen Operativo
                   </h3>
                   <p className="text-sm leading-relaxed text-zinc-400">
-                    Reunión de seguimiento correspondiente al proyecto <strong className="text-zinc-300">{proyecto.nombre}</strong>. Se
-                    revisó el avance de los entregables por área, se validaron los compromisos pendientes y se
-                    actualizó el cronograma general. La próxima revisión queda sujeta a la disponibilidad de la
-                    Directiva PE.
+                    El proyecto <strong className="text-zinc-300">{proyecto.nombre}</strong> está documentado y almacenado en el repositorio central. Las métricas de éxito y el control logístico han sido validados por la Directiva PE.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="mb-3 text-sm font-semibold text-zinc-200">Compromisos</h3>
+                  <h3 className="mb-3 text-sm font-semibold text-zinc-200">Compromisos / Mitigación</h3>
                   <ul className="flex flex-col gap-2.5">
                     {[
-                      "Confirmar aforo final con el recinto",
-                      "Gestión de permisos internos",
-                      "Publicar cronograma detallado al equipo",
+                      "Confirmación previa y contacto directo 24h antes.",
+                      "Descargar materiales offline por cortes de Wi-Fi.",
+                      "Checklist de materiales logística T-3 días.",
                     ].map((item, i) => (
                       <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-400">
                         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
@@ -493,6 +484,15 @@ function ActaDrawer({ proyecto, onClose }) {
                       </li>
                     ))}
                   </ul>
+                </div>
+
+                {/* BOTÓN DE DESCARGA SSOT */}
+                <div className="mt-8 border-t border-zinc-800 pt-6">
+                  <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-500 shadow-lg shadow-blue-500/20">
+                    <FileText className="h-4 w-4" />
+                    Descargar Acta Original (.docx)
+                  </button>
+                  <p className="mt-2 text-center text-[10px] text-zinc-500 font-mono">MD5: a1b2c3d4e5f6g7h8i9j0</p>
                 </div>
               </div>
 
