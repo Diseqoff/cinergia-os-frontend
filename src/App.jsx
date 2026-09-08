@@ -360,8 +360,8 @@ function ActaDrawer({ proyecto, onClose }) {
                     </div>
                     <div className="col-span-12 flex flex-col">
                       <label className="text-[10px] text-zinc-500 uppercase mb-1">Descripción / Alcance</label>
-                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-400 min-h-[60px]">
-                        [Pendiente de extracción: Resumen o Justificación extraída de la plantilla .docx]
+                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-400 min-h-[60px] whitespace-pre-wrap">
+                        {proyecto.resumen || "Sin descripción proporcionada."}
                       </div>
                     </div>
                   </div>
@@ -379,11 +379,11 @@ function ActaDrawer({ proyecto, onClose }) {
                     </div>
                     <div className="col-span-4 flex flex-col">
                       <label className="text-[10px] text-zinc-500 uppercase mb-1">Sede / Locación</label>
-                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-200">Centro de Convenciones PE</div>
+                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-200">{proyecto.sede || "Por definir"}</div>
                     </div>
                     <div className="col-span-4 flex flex-col">
                       <label className="text-[10px] text-zinc-500 uppercase mb-1">Aforo / Capacidad</label>
-                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-200">20-25 Personas</div>
+                      <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-200">{proyecto.staff_requerido || "N/A"}</div>
                     </div>
                     <div className="col-span-6 flex flex-col">
                       <label className="text-[10px] text-zinc-500 uppercase mb-1">Responsables Directos</label>
@@ -391,9 +391,15 @@ function ActaDrawer({ proyecto, onClose }) {
                     </div>
                     <div className="col-span-6 flex flex-col">
                       <label className="text-[10px] text-zinc-500 uppercase mb-1">Link de Participantes (Excel)</label>
-                      <div className="border border-zinc-800 bg-blue-900/10 px-3 py-2 rounded text-sm text-blue-400 hover:text-blue-300 underline cursor-pointer truncate transition-colors">
-                        https://onedrive.live.com/cinergia/directorio-asistentes-2026
-                      </div>
+                      {proyecto.enlace_excel && proyecto.enlace_excel.includes("http") ? (
+                        <a href={proyecto.enlace_excel} target="_blank" rel="noreferrer" className="border border-zinc-800 bg-blue-900/10 px-3 py-2 rounded text-sm text-blue-400 hover:text-blue-300 underline cursor-pointer truncate transition-colors block">
+                          Abrir Directorio Externo
+                        </a>
+                      ) : (
+                        <div className="border border-zinc-800 bg-zinc-900/50 px-3 py-2 rounded text-sm text-zinc-500 truncate">
+                          {proyecto.enlace_excel || "N/A"}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -473,16 +479,16 @@ function ActaDrawer({ proyecto, onClose }) {
                 <div>
                   <h3 className="mb-3 text-sm font-semibold text-zinc-200">Compromisos / Mitigación</h3>
                   <ul className="flex flex-col gap-2.5">
-                    {[
-                      "Confirmación previa y contacto directo 24h antes.",
-                      "Descargar materiales offline por cortes de Wi-Fi.",
-                      "Checklist de materiales logística T-3 días.",
-                    ].map((item, i) => (
-                      <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-400">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                        {item}
-                      </li>
-                    ))}
+                    {proyecto.compromisos && proyecto.compromisos.length > 0 ? (
+                      proyecto.compromisos.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-400">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                          {item}
+                        </li>
+                      ))
+                    ) : (
+                      <li className="text-sm text-zinc-600 italic">No se registraron planes de mitigación en el acta.</li>
+                    )}
                   </ul>
                 </div>
 
@@ -492,7 +498,7 @@ function ActaDrawer({ proyecto, onClose }) {
                     <FileText className="h-4 w-4" />
                     Descargar Acta Original (.docx)
                   </button>
-                  <p className="mt-2 text-center text-[10px] text-zinc-500 font-mono">MD5: a1b2c3d4e5f6g7h8i9j0</p>
+                  <p className="mt-2 text-center text-[10px] text-zinc-500 font-mono">MD5: {proyecto.id ? btoa(proyecto.id).substring(0, 20).toLowerCase() : "a1b2c3d4e5f6g7h8i9j0"}</p>
                 </div>
               </div>
 
