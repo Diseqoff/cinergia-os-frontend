@@ -513,125 +513,199 @@ function ActaDrawer({ proyecto, onClose }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* NUEVO: Drawer de Creación e Importación de Proyecto                */
+/* NUEVO: Modal Central de Creación e Importación de Proyecto         */
 /* ------------------------------------------------------------------ */
 
-function NuevoProyectoDrawer({ abierto, onClose }) {
-  return (
-    <div className={`fixed inset-0 z-50 ${abierto ? "pointer-events-auto" : "pointer-events-none"}`} aria-hidden={!abierto}>
-      <div onClick={onClose} className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${abierto ? "opacity-100" : "opacity-0"}`} />
+function NuevoProyectoModal({ abierto, onClose }) {
+  const [estadoProyecto, setEstadoProyecto] = useState("Planificación");
 
-      <div className={`absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-zinc-800 shadow-2xl transition-transform duration-300 ease-out ${abierto ? "translate-x-0" : "translate-x-full"}`} style={{ backgroundColor: PANEL }} role="dialog" aria-modal="true">
-        
-        <div className="flex items-start justify-between gap-4 border-b border-zinc-800 px-6 py-5 shrink-0">
-          <div className="min-w-0 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
-              <Plus className="h-5 w-5 text-blue-500" />
+  if (!abierto) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      aria-hidden={!abierto}
+    >
+      {/* Overlay oscuro con blur */}
+      <div 
+        onClick={onClose} 
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-300" 
+      />
+
+      {/* Contenedor Principal Centrado */}
+      <div 
+        className="relative flex w-full max-w-4xl flex-col rounded-2xl border border-zinc-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        style={{ backgroundColor: PANEL }}
+        role="dialog" 
+        aria-modal="true"
+      >
+        {/* Cabecera */}
+        <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-950/50 px-6 py-5">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 shadow-inner">
+              <Plus className="h-6 w-6 text-blue-500" />
             </div>
             <div>
-              <p className="font-mono text-xs text-zinc-500">Gestor Operativo</p>
-              <h2 className="mt-0.5 text-lg font-semibold text-zinc-100">Registrar Proyecto</h2>
+              <p className="font-mono text-xs text-zinc-500 uppercase tracking-widest">Gestor Operativo</p>
+              <h2 className="text-xl font-bold text-zinc-100">Registrar Nuevo Proyecto</h2>
             </div>
           </div>
-          <button onClick={onClose} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-100">
-            <X className="h-4 w-4" />
+          <button 
+            onClick={onClose} 
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-100 transition-colors focus-visible:outline-none"
+          >
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-6">
-          
-          <div>
-            <h3 className="mb-2 text-sm font-semibold text-zinc-200">Importación de Acta (Parser)</h3>
-            <p className="mb-4 text-xs text-zinc-500">Sube el documento Word (.docx) para que el motor de Python extraiga los datos y autocomplete el formulario.</p>
+        {/* Cuerpo Dividido (Grid) */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             
-            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-zinc-800 border-dashed rounded-xl cursor-pointer hover:bg-zinc-900/50 hover:border-blue-500/50 transition-colors bg-zinc-900/20 group">
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <UploadCloud className="w-8 h-8 mb-3 text-zinc-500 group-hover:text-blue-500 transition-colors" />
-                <p className="mb-1 text-sm text-zinc-400"><span className="font-semibold text-zinc-200">Haz clic para subir</span> o arrastra el archivo</p>
-                <p className="text-xs text-zinc-500">Solo archivos .docx soportados</p>
-              </div>
-              <input 
-                type="file" 
-                className="hidden" 
-                accept=".docx" 
-                onChange={async (e) => {
-                  const file = e.target.files[0];
-                  if (!file) return;
-
-                  // 1. Preparamos el paquete
-                  const formData = new FormData();
-                  formData.append("file", file);
-
-                  try {
-                    // 2. Avisamos al usuario
-                    alert("Enviando acta al motor de Ingestión...");
-                    
-                    // 3. Disparamos la petición al servidor Python local
-                    const response = await fetch("https://cinergia-os-frontend.onrender.com/api/upload-acta", {
-                      method: "POST",
-                      body: formData,
-                    });
-
-                    if (response.ok) {
-                      const result = await response.json();
-                      alert("✅ ¡Éxito! " + result.message);
-                      // Recargamos la página para que React vuelva a consultar Supabase y muestre el nuevo proyecto
-                      window.location.reload(); 
-                    } else {
-                      const errorData = await response.json();
-                      alert("❌ Error del servidor: " + errorData.detail);
-                    }
-                  } catch (error) {
-                    alert("❌ Error crítico de conexión. ¿Está encendido el servidor Python (FastAPI)? Detalle: " + error.message);
-                  }
-                }} 
-              />
-            </label>
-          </div>
-
-          <div className="h-px w-full bg-zinc-800/60" />
-
-          <div>
-            <h3 className="mb-4 text-sm font-semibold text-zinc-200">Datos Manuales</h3>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-zinc-400">Nombre del Proyecto</label>
-                <input type="text" placeholder="Ej. Congreso Cinergia 2026..." className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50" />
-              </div>
-              
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-zinc-400">Área Responsable</label>
-                <select className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50">
-                  <option value="">Selecciona un área...</option>
-                  {AREAS_DISPONIBLES.filter(a => a !== "Todas").map(area => (
-                    <option key={area} value={area}>{area}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-zinc-400">Responsable</label>
-                  <input type="text" placeholder="Nombre completo" className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50" />
+            {/* COLUMNA IZQUIERDA: Ingestión Automatizada */}
+            <div className="flex flex-col gap-6">
+              <div>
+                <div className="bg-blue-900/20 border border-blue-500/30 px-3 py-1.5 mb-4 rounded inline-block">
+                  <h3 className="text-xs font-bold text-blue-400 uppercase tracking-widest">1. Importación de Acta (Parser)</h3>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-zinc-400">Fecha Estimada</label>
-                  <input type="date" className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50" />
+                <p className="mb-4 text-sm leading-relaxed text-zinc-400">
+                  Sube el documento oficial en formato Word (.docx). El motor de Python extraerá automáticamente los datos clave para evitar la entrada manual.
+                </p>
+                
+                <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-zinc-700 border-dashed rounded-xl cursor-pointer hover:bg-zinc-900/60 hover:border-blue-500 transition-all bg-zinc-900/30 group">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <div className="mb-4 rounded-full bg-zinc-800 p-4 group-hover:bg-blue-500/20 transition-colors">
+                      <UploadCloud className="w-8 h-8 text-zinc-400 group-hover:text-blue-500 transition-colors" />
+                    </div>
+                    <p className="mb-2 text-sm text-zinc-300"><span className="font-semibold text-white">Haz clic para subir</span> o arrastra el archivo</p>
+                    <p className="text-xs text-zinc-500 font-mono">Solo archivos .docx soportados</p>
+                  </div>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept=".docx" 
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+
+                      const formData = new FormData();
+                      formData.append("file", file);
+
+                      try {
+                        alert("Enviando acta al motor de Ingestión...");
+                        
+                        const response = await fetch("https://cinergia-os-frontend.onrender.com/api/upload-acta", {
+                          method: "POST",
+                          body: formData,
+                        });
+
+                        if (response.ok) {
+                          const result = await response.json();
+                          alert("✅ ¡Éxito! " + result.message);
+                          window.location.reload(); 
+                        } else {
+                          const errorData = await response.json();
+                          alert("❌ Error del servidor: " + errorData.detail);
+                        }
+                      } catch (error) {
+                        alert("❌ Error crítico de conexión. Detalle: " + error.message);
+                      }
+                    }} 
+                  />
+                </label>
+              </div>
+
+              <div className="rounded-lg border border-amber-900/30 bg-amber-500/10 p-4">
+                 <p className="text-xs text-amber-400/90 leading-relaxed">
+                   <strong>Nota de Estandarización:</strong> El parser buscará la estructura oficial. Si el acta no contiene los campos obligatorios (Ej. Título, Área, Responsable), será rechazada por el Modo Estricto.
+                 </p>
+              </div>
+            </div>
+
+            {/* COLUMNA DERECHA: Datos Complementarios Manuales */}
+            <div className="flex flex-col gap-6 border-t border-zinc-800 pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
+              <div>
+                <div className="bg-emerald-900/20 border border-emerald-500/30 px-3 py-1.5 mb-4 rounded inline-block">
+                  <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-widest">2. Datos Complementarios (No extraíbles)</h3>
+                </div>
+                <p className="mb-5 text-sm text-zinc-400">
+                  Completa la información operativa que no está contenida en el documento estático.
+                </p>
+
+                <div className="flex flex-col gap-5">
+                  
+                  {/* Selector de Estado */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wide">Fase Operativa (Estado)</label>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {["Idealización", "Planificación", "Ejecución", "Terminado"].map((estado) => (
+                        <button
+                          key={estado}
+                          onClick={() => setEstadoProyecto(estado)}
+                          className={`rounded-lg border px-3 py-2 text-xs font-medium transition-all focus-visible:outline-none ${
+                            estadoProyecto === estado
+                              ? "border-blue-500 bg-blue-500/20 text-blue-400 shadow-[0_0_15px_-3px_rgba(59,130,246,0.3)]"
+                              : "border-zinc-700 bg-zinc-900/50 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+                          }`}
+                        >
+                          {estado}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Link del Excel */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wide">Link de Participantes (Excel / Sheets)</label>
+                    <input 
+                      type="url" 
+                      placeholder="https://onedrive.live.com/..." 
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-900/50 px-4 py-3 text-sm text-zinc-200 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 placeholder:text-zinc-600" 
+                    />
+                    <p className="text-[10px] text-zinc-500">Pega aquí el enlace al documento externo con la lista de ponentes o equipo de apoyo.</p>
+                  </div>
+
+                  {/* Fallback de Datos Base (En caso de que falle el parser) */}
+                  <div className="mt-2 pt-4 border-t border-zinc-800">
+                     <p className="text-xs font-medium text-zinc-500 mb-3 flex items-center gap-2">
+                       <Settings2 className="h-3 w-3" /> Datos Base (Carga Manual de Respaldo)
+                     </p>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 opacity-50 focus-within:opacity-100 transition-opacity">
+                        <div className="flex flex-col gap-1.5">
+                          <input type="text" placeholder="Nombre del Proyecto" className="w-full rounded border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-200 outline-none focus:border-zinc-600" />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <select className="w-full rounded border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-200 outline-none focus:border-zinc-600 appearance-none">
+                            <option value="">Área Responsable...</option>
+                            {AREAS_DISPONIBLES.filter(a => a !== "Todas").map(area => (
+                              <option key={area} value={area}>{area}</option>
+                            ))}
+                          </select>
+                        </div>
+                     </div>
+                  </div>
+
                 </div>
               </div>
             </div>
-          </div>
 
+          </div>
         </div>
 
-        <div className="border-t border-zinc-800 px-6 py-4 shrink-0 flex gap-3">
-          <button onClick={onClose} className="flex-1 rounded-lg border border-zinc-800 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-900 transition-colors">
+        {/* Pie de botones */}
+        <div className="border-t border-zinc-800 bg-zinc-950/80 p-6 flex items-center justify-end gap-4 shrink-0">
+          <button 
+            onClick={onClose} 
+            className="rounded-lg border border-zinc-700 px-6 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
+          >
             Cancelar
           </button>
-          <button className="flex-1 rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20 transition-colors">
-            Guardar Proyecto
+          <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-2.5 text-sm font-medium text-white hover:bg-blue-500 shadow-[0_0_20px_-5px_rgba(59,130,246,0.5)] transition-all">
+            <CheckCircle2 className="h-4 w-4" />
+            Registrar Proyecto
           </button>
         </div>
+
       </div>
     </div>
   );
@@ -1977,7 +2051,7 @@ export default function CinergiaOS() {
 
       <ActaDrawer proyecto={actaAbierta} onClose={() => setActaAbierta(null)} />
       <SemaforoDrawer data={semaforoAbierto} onClose={() => setSemaforoAbierto(null)} />
-      <NuevoProyectoDrawer abierto={creandoProyecto} onClose={() => setCreandoProyecto(false)} />
+      <NuevoProyectoModal abierto={creandoProyecto} onClose={() => setCreandoProyecto(false)} />
       
       {/* NUEVOS DRAWERS */}
       <ConfiguracionDrawer 
