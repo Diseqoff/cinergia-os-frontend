@@ -1,5 +1,6 @@
+import io
+import re
 import os
-import shutil
 import uuid
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -7,7 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from docx import Document
-import re
 
 # 1. Configuración Inicial
 app = FastAPI(title="Cinergia OS Ingestor API")
@@ -29,98 +29,98 @@ load_dotenv(ENV_PATH)
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# Si no hay credenciales, matamos el servidor antes de que arranque a medias
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError(f"❌ ERROR FATAL: Faltan credenciales. Verifica que {ENV_PATH} exista y tenga SUPABASE_URL y SUPABASE_KEY.")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# 3. Lógica de Extracción
-def procesar_documento(ruta_archivo):
-    doc = Document(ruta_archivo)
-    texto_completo = "\n".join([parrafo.text for parrafo in doc.paragraphs])
-    
-    nuevo_id = f"PRJ-{str(uuid.uuid4())[:4].upper()}"
-    
-    datos = {
-        "id_proyecto": nuevo_id,
-        "nombre": "Proyecto Sin Nombre",
-        "area": "Proyectos",
-        "responsable": "Sin asignar",
-        "fecha": "01 Ene 2026",
-        "compromisos": []
-    }
+# 3. Helpers
+def limpiar_texto(texto):
+    """Limpia los corchetes vacíos o espacios en blanco de la plantilla"""
+    if not texto:
+        return ""
+    return texto.replace("[", "").replace("]", "").strip()
 
-    match_nombre = re.search(r"Proyecto:\s*(.+)", texto_completo, re.IGNORECASE)
-    if match_nombre: datos["nombre"] = match_nombre.group(1).strip()
-
-    match_area = re.search(r"Área:\s*(.+)", texto_completo, re.IGNORECASE)
-    if match_area: datos["area"] = match_area.group(1).strip()
-
-    match_resp = re.search(r"Responsable:\s*(.+)", texto_completo, re.IGNORECASE)
-    if match_resp: datos["responsable"] = match_resp.group(1).strip()
-
-    match_fecha = re.search(r"Fecha:\s*(.+)", texto_completo, re.IGNORECASE)
-    if match_fecha: datos["fecha"] = match_fecha.group(1).strip()
-
-    en_compromisos = False
-    for parrafo in doc.paragraphs:
-        texto = parrafo.text.strip()
-        if "compromisos:" in texto.lower():
-            en_compromisos = True
-            continue
-        
-        if en_compromisos and (texto.startswith("-") or texto.startswith("•")):
-            datos["compromisos"].append(texto[1:].strip())
-        elif en_compromisos and texto == "":
-            pass
-        elif en_compromisos and not (texto.startswith("-") or texto.startswith("•")):
-            en_compromisos = False
-
-    return datos
-
-# 4. El Endpoint
+# 4. El Endpoint Único y Definitivo
 @app.post("/api/upload-acta")
 async def upload_acta(file: UploadFile = File(...)):
-    if not file.filename.endswith('.docx'):
-        raise HTTPException(status_code=400, detail="El archivo debe ser un .docx")
-
-    os.makedirs("documentos", exist_ok=True)
-    file_path = f"documentos/{file.filename}"
-    
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    if not file.filename.endswith(".docx"):
+        raise HTTPException(status_code=400, detail="Formato inválido. Solo se admiten archivos .docx")
 
     try:
-        datos = procesar_documento(file_path)
+        # Procesamiento rápido en memoria (Sin usar el disco duro de Render)
+        content = await file.read()
+        doc = Document(io.BytesIO(content))
+        full_text = "\n".join([p.text for p in doc.paragraphs])
         
+        # Generar ID único para el proyecto
+        nuevo_id = f"PRJ-{str(uuid.uuid4())[:4].upper()}"
+
+        datos_extraidos = {
+            "nombre": None,
+            "area": None,
+            "responsable": None,
+            "fecha": None,
+            "sede": None,
+            "staff_requerido": None
+        }
+
+        # Anclas de búsqueda basadas en la NUEVA PLANTILLA OFICIAL
+        match_nombre = re.search(r"Nombre del Proyecto:\s*(.+)", full_text, re.IGNORECASE)
+        match_area = re.search(r"Área Ejecutora:\s*(.+)", full_text, re.IGNORECASE)
+        match_responsable = re.search(r"Responsable Directo:\s*(.+)", full_text, re.IGNORECASE)
+        match_fecha = re.search(r"Fecha de Ejecución:\s*(.+)", full_text, re.IGNORECASE)
+        match_sede = re.search(r"Modalidad y Ubicación:\s*(.+)", full_text, re.IGNORECASE)
+        match_aforo = re.search(r"Aforo / Capacidad Estimada:\s*(.+)", full_text, re.IGNORECASE)
+
+        if match_nombre: datos_extraidos["nombre"] = limpiar_texto(match_nombre.group(1))
+        if match_area: datos_extraidos["area"] = limpiar_texto(match_area.group(1))
+        if match_responsable: datos_extraidos["responsable"] = limpiar_texto(match_responsable.group(1))
+        if match_fecha: datos_extraidos["fecha"] = limpiar_texto(match_fecha.group(1))
+        if match_sede: datos_extraidos["sede"] = limpiar_texto(match_sede.group(1))
+        if match_aforo: datos_extraidos["staff_requerido"] = limpiar_texto(match_aforo.group(1))
+
+        # MODO ESTRICTO: Validación implacable
+        campos_faltantes = []
+        for clave, valor in datos_extraidos.items():
+            if not valor or valor.lower() in ["escribir el título oficial", "elegir una", "nombre completo del líder", "dd/mm/aaaa"]:
+                campos_faltantes.append(clave)
+
+        # Si faltan los datos críticos, el sistema rechaza el archivo
+        if "nombre" in campos_faltantes or "area" in campos_faltantes or "responsable" in campos_faltantes:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Rechazado por Modo Estricto. El acta no utiliza la plantilla oficial o faltan campos obligatorios críticos: {', '.join(campos_faltantes)}."
+            )
+
+        # Inyección de datos en Supabase (Tabla principal)
         supabase.table("proyectos").insert({
-            "id": datos["id_proyecto"],
-            "nombre": datos["nombre"],
-            "area": datos["area"],
-            "responsable": datos["responsable"],
-            "sede": "Centro de Convenciones PE"
+            "id": nuevo_id,
+            "nombre": datos_extraidos["nombre"],
+            "area": datos_extraidos["area"],
+            "responsable": datos_extraidos["responsable"],
+            "estado_actual": "Planificación",
+            "sede": datos_extraidos["sede"],
+            "fecha": datos_extraidos["fecha"],
+            "staff_requerido": datos_extraidos["staff_requerido"]
         }).execute()
 
-        for comp in datos["compromisos"]:
-            supabase.table("compromisos").insert({
-                "proyecto_id": datos["id_proyecto"],
-                "descripcion": comp
-            }).execute()
-            
+        # Inyección en la tabla de historial para alimentar el pipeline
         supabase.table("historial_etapas").insert({
-            "proyecto_id": datos["id_proyecto"],
+            "proyecto_id": nuevo_id,
             "etapa": "Planificación Base"
         }).execute()
 
-        os.remove(file_path)
-        
-        return {"status": "success", "message": "Acta procesada y subida a Cinergia OS", "data": datos}
+        return {
+            "status": "success",
+            "message": "Acta procesada e inyectada con éxito. Cumple con el estándar operativo.", 
+            "data": datos_extraidos
+        }
 
     except Exception as e:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        raise HTTPException(status_code=500, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor al procesar el acta: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
