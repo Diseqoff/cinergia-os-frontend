@@ -1,3 +1,5 @@
+# OBSOLETO: versión anterior de api.py. Ningún módulo lo importa.
+
 import io
 import re
 from fastapi import FastAPI, UploadFile, File, HTTPException

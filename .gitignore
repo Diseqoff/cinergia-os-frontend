@@ -26,3 +26,7 @@ dist-ssr
 .env.local
 Ingestor/credenciales.env
 node_modules
+# Datos personales para la carga de cuentas
+Ingestor/usuarios.csv
+Ingestor/venv
+Ingestor/__pycache__
