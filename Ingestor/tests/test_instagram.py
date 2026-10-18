@@ -2,7 +2,7 @@
 
 import json
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -68,12 +68,13 @@ class Consulta:
                 sel = sel[: self.tope]
             return SimpleNamespace(data=sel, count=total if self.contar else None)
         if self.accion == "insert":
-            nueva = dict(self.carga)
-            nueva.setdefault("id", f"{self.tabla}-{len(filas) + 1}")
-            for unica in self.db.unicas.get(self.tabla, []):
-                if nueva.get(unica) is not None and any(f.get(unica) == nueva[unica] for f in filas):
-                    raise RuntimeError(f"duplicado en {unica}")
-            filas.append(nueva)
+            for fila in (self.carga if isinstance(self.carga, list) else [self.carga]):
+                nueva = dict(fila)
+                nueva.setdefault("id", f"{self.tabla}-{len(filas) + 1}")
+                for unica in self.db.unicas.get(self.tabla, []):
+                    if nueva.get(unica) is not None and any(f.get(unica) == nueva[unica] for f in filas):
+                        raise RuntimeError(f"duplicado en {unica}")
+                filas.append(nueva)
         elif self.accion == "update":
             for f in filas:
                 if coincide(f):
@@ -90,14 +91,44 @@ class Consulta:
         return SimpleNamespace(data=[], count=None)
 
 
+class _Cubo:
+    def __init__(self, db):
+        self.db = db
+
+    def upload(self, path, file, file_options=None):
+        self.db.archivos[path] = (file, file_options or {})
+
+    def get_public_url(self, path):
+        return f"https://storage.test/actas/{path}"
+
+
+class _Rpc:
+    def __init__(self, db, nombre, params):
+        self.db, self.nombre, self.params = db, nombre, params
+
+    def execute(self):
+        self.db.rpc_llamadas.append((self.nombre, self.params))
+        if self.nombre == "registrar_etapa":
+            for f in self.db.tablas.get("proyectos", []):
+                if f["id"] == self.params["p_proyecto"]:
+                    f["estado_actual"] = self.params["p_etapa"]
+        return SimpleNamespace(data=None, count=None)
+
+
 class BaseFalsa:
     unicas = {"publicaciones": ["ig_media_id", "codigo"]}
 
     def __init__(self):
         self.tablas = {}
+        self.archivos = {}
+        self.rpc_llamadas = []
+        self.storage = SimpleNamespace(from_=lambda bucket: _Cubo(self))
 
     def table(self, nombre):
         return Consulta(self, nombre)
+
+    def rpc(self, nombre, params):
+        return _Rpc(self, nombre, params)
 
 
 # ---------------------------------------------------------------------------

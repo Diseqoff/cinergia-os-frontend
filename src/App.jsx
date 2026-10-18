@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import { llamarApi } from "./api";
 import { VistaAnaliticaMarketing } from "./Marketing";
+import { AREAS_ANALITICA, analizarArea } from "./analiticaAreas";
 import { combinarMetricasMensuales } from "./marketingDatos";
 import { MetricasMarketingModal, PublicacionModal, InstagramModal } from "./MarketingFormularios";
 import { PANEL, CHART, CAMPO_FORM, ETIQUETA_FORM } from "./tokens";
@@ -13,15 +14,16 @@ import {
 import {
   LayoutGrid, BarChart3, Megaphone, Search, Bell, LogOut,
   ChevronDown, FileText, ChevronLeft, ChevronRight, X,
-  TrendingUp, TrendingDown, Minus, Users, Layers, Zap, CheckCircle2,
-  ShieldCheck, RefreshCw, FolderPlus, Database, Settings2,
+  TrendingUp, TrendingDown, Minus, Users, Layers, CheckCircle2,
+  ShieldCheck, RefreshCw, Database, Settings2,
   Calendar as CalendarIcon, Star, Award, Building2, Timer, Filter,
-  MapPin, DollarSign, ClipboardList, Activity, Plus, UploadCloud
+  ClipboardList, Activity, Plus, UploadCloud,
+  CalendarDays, Target, Handshake, ListChecks, Hourglass
 } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend,
-  AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell,
+  AreaChart, Area,
 } from "recharts";
 
 /* ------------------------------------------------------------------ */
@@ -37,14 +39,6 @@ const AREA_COLOR = {
 };
 
 const AREAS_DISPONIBLES = ["Todas", ...AREAS];
-
-const ICONO_AUDITORIA = {
-  proyecto: { Icon: FolderPlus, color: "text-blue-500", dot: "bg-blue-600" },
-  etapa: { Icon: RefreshCw, color: "text-blue-500", dot: "bg-blue-600" },
-  compromiso: { Icon: CheckCircle2, color: "text-emerald-500", dot: "bg-emerald-500" },
-  cierre: { Icon: ShieldCheck, color: "text-emerald-500", dot: "bg-emerald-500" },
-  marketing: { Icon: Megaphone, color: "text-amber-500", dot: "bg-amber-500" },
-};
 
 const ICONO_IMPACTO = { personas: Users, convenios: Building2, voluntariado: Timer, social: Award };
 const ICONO_TRANSVERSAL = { tr_externos: ClipboardList, tr_satisfaccion: Star, tr_puntualidad: Timer, tr_planes: ShieldCheck };
@@ -128,7 +122,7 @@ function ProjectCard({ p, onVerActa }) {
   );
 }
 
-function KpiCard({ Icon, label, value, suffix, delta, trend }) {
+function KpiCard({ Icon, label, value, suffix, delta, trend, detalle }) {
   const trendColor = trend === "up" ? "text-emerald-500" : trend === "down" ? "text-red-500" : "text-zinc-500";
   const TrendIcon = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
   return (
@@ -143,11 +137,15 @@ function KpiCard({ Icon, label, value, suffix, delta, trend }) {
         <span className="font-mono text-2xl font-semibold tabular-nums text-zinc-100">{value}</span>
         {suffix && <span className="font-mono text-sm text-zinc-500">{suffix}</span>}
       </div>
-      <div className={`mt-2 inline-flex items-center gap-1 text-xs font-medium ${trendColor}`}>
-        <TrendIcon className="h-3.5 w-3.5" />
-        <span className="font-mono">{delta}</span>
-        <span className="font-normal text-zinc-600">vs periodo anterior</span>
-      </div>
+      {detalle !== undefined ? (
+        <p className="mt-2 text-xs text-zinc-500">{detalle}</p>
+      ) : (
+        <div className={`mt-2 inline-flex items-center gap-1 text-xs font-medium ${trendColor}`}>
+          <TrendIcon className="h-3.5 w-3.5" />
+          <span className="font-mono">{delta}</span>
+          <span className="font-normal text-zinc-600">vs periodo anterior</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -175,7 +173,7 @@ function ActaDrawer({ proyecto, onClose, compromisos, historial, cierre, puedeEd
   const vencidos = propios.filter((c) => !c.fecha_entrega && aFecha(c.fecha_limite) && aFecha(c.fecha_limite) < new Date()).length;
   const riesgos = proyecto
     ? (Array.isArray(proyecto.riesgos) && proyecto.riesgos.length
-        ? proyecto.riesgos.map((r) => `${r.riesgo} → ${r.mitigacion}`)
+        ? proyecto.riesgos.map((r) => (r.mitigacion ? `${r.riesgo} → ${r.mitigacion}` : r.riesgo))
         : Array.isArray(proyecto.compromisos) ? proyecto.compromisos : [])
     : [];
   const metas = proyecto && Array.isArray(proyecto.metas) ? proyecto.metas : [];
@@ -352,7 +350,7 @@ function ActaDrawer({ proyecto, onClose, compromisos, historial, cierre, puedeEd
                     <CheckCircle2 className="h-3 w-3 text-blue-400" />
                   </div>
                   <p className="text-[10px] text-zinc-500 leading-tight">
-                    Cinergia OS actúa como Fuente Única de Verdad. Estos datos fueron extraídos del acta original. El seguimiento de compromisos, etapas y cierre se registra en el panel lateral.
+                    Cinergia actúa como Fuente Única de Verdad. Estos datos fueron extraídos del acta original. El seguimiento de compromisos, etapas y cierre se registra en el panel lateral.
                   </p>
                 </div>
 
@@ -648,9 +646,17 @@ function NuevoProyectoModal({ abierto, onClose, onCreado, modoEstricto }) {
     try {
       const resultado = await llamarApi("/api/upload-acta", { method: "POST", formData });
       await onCreado?.();
-      const faltantes = resultado.data?.campos_faltantes || [];
-      if (faltantes.length) {
-        setAvisoSubida(`Proyecto ${resultado.data.id} registrado. Completar en el acta: ${faltantes.join(", ")}.`);
+      const datos = resultado.data || {};
+      const faltantes = datos.campos_faltantes || [];
+      const avisos = datos.avisos || [];
+      const partes = [];
+      if (datos.accion === "sin_cambios") partes.push("Este archivo ya estaba cargado. No se hicieron cambios.");
+      else if (datos.accion === "actualizado") partes.push(`El proyecto ${datos.id} ya existía y se actualizó con los datos del acta.`);
+      else if (faltantes.length) partes.push(`Proyecto ${datos.id} registrado.`);
+      if (faltantes.length) partes.push(`Completar en el acta: ${faltantes.join(", ")}.`);
+      partes.push(...avisos);
+      if (partes.length) {
+        setAvisoSubida(partes.join(" "));
       } else {
         limpiarYCerrar();
       }
@@ -748,10 +754,10 @@ function NuevoProyectoModal({ abierto, onClose, onCreado, modoEstricto }) {
             <div className="flex flex-col gap-6">
               <div>
                 <div className="bg-blue-900/20 border border-blue-500/30 px-3 py-1.5 mb-4 rounded inline-block">
-                  <h3 className="text-xs font-bold text-blue-400 uppercase tracking-widest">1. Importación de Acta (Parser)</h3>
+                  <h3 className="text-xs font-bold text-blue-400 uppercase tracking-widest">1. Importación de acta</h3>
                 </div>
                 <p className="mb-4 text-sm leading-relaxed text-zinc-400">
-                  Sube el documento oficial en formato Word (.docx). El motor de Python extraerá automáticamente los datos clave para evitar la entrada manual.
+                  Sube el acta en formato Word o PDF. Cinergia reconoce el tipo de acta y extrae los datos propios de cada área, sin entrada manual.
                 </p>
                 
                 <label className={`flex flex-col items-center justify-center w-full h-48 border-2 border-zinc-700 border-dashed rounded-xl transition-all bg-zinc-900/30 group ${subiendo ? "opacity-60 cursor-wait" : "cursor-pointer hover:bg-zinc-900/60 hover:border-blue-500"}`}>
@@ -764,14 +770,14 @@ function NuevoProyectoModal({ abierto, onClose, onCreado, modoEstricto }) {
                     ) : (
                       <>
                         <p className="mb-2 text-sm text-zinc-300"><span className="font-semibold text-white">Haz clic para subir</span> o arrastra el archivo</p>
-                        <p className="text-xs text-zinc-500 font-mono">Solo archivos .docx soportados</p>
+                        <p className="text-xs text-zinc-500 font-mono">Archivos .docx o .pdf</p>
                       </>
                     )}
                   </div>
                   <input
                     type="file"
                     className="hidden"
-                    accept=".docx"
+                    accept=".docx,.pdf"
                     disabled={subiendo}
                     onChange={handleSubirActa}
                   />
@@ -792,7 +798,7 @@ function NuevoProyectoModal({ abierto, onClose, onCreado, modoEstricto }) {
 
               <div className="rounded-lg border border-amber-900/30 bg-amber-500/10 p-4">
                  <p className="text-xs text-amber-400/90 leading-relaxed">
-                   <strong>Nota de Estandarización:</strong> El parser buscará la estructura oficial. Si el acta no contiene los campos obligatorios (Ej. Título, Área, Responsable), será rechazada por el Modo Estricto.
+                   <strong>Tipos de acta reconocidos:</strong> acta de evento, acta de constitución de proyecto, convenio, carta y propuesta de alianza. Con el Modo Estricto activo, se rechaza el acta si falta el responsable.
                  </p>
               </div>
             </div>
@@ -842,7 +848,7 @@ function NuevoProyectoModal({ abierto, onClose, onCreado, modoEstricto }) {
                     <p className="text-[10px] text-zinc-500">Pega aquí el enlace al documento externo con la lista de ponentes o equipo de apoyo.</p>
                   </div>
 
-                  {/* Fallback de Datos Base (En caso de que falle el parser, o no haya acta) */}
+                  {/* Registro manual cuando no hay acta */}
                   <div className="mt-2 pt-4 border-t border-zinc-800">
                      <p className="text-xs font-medium text-zinc-500 mb-3 flex items-center gap-2">
                        <Settings2 className="h-3 w-3" /> Datos Base · Carga Manual sin Acta
@@ -1088,7 +1094,7 @@ function SemaforoDrawer({ data, onClose }) {
 /* ------------------------------------------------------------------ */
 
 const NAV_ITEMS = [
-  { key: "macro", label: "Panel Macro", Icon: LayoutGrid },
+  { key: "general", label: "Panel General", Icon: LayoutGrid },
   { key: "portafolio", label: "Portafolio Operativo", Icon: Layers },
   { key: "calendario", label: "Cronograma PE", Icon: CalendarIcon },
   { key: "analitica-proyectos", label: "Analítica de Proyectos", Icon: BarChart3 },
@@ -1099,12 +1105,10 @@ function Sidebar({ vistaActiva, setVistaActiva }) {
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-white/5 bg-transparent z-10">
       <div className="flex items-center gap-3 border-b border-white/5 px-5 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-emerald-500">
-          <span className="font-mono text-sm font-bold text-white">C</span>
-        </div>
+        <img src="/cinergia.png" alt="Cinergia" className="h-9 w-9 rounded-lg bg-white object-contain p-0.5" />
         <div className="min-w-0">
           <p className="truncate font-mono text-sm font-semibold tracking-wide text-zinc-100">
-            CINERGIA OS
+            CINERGIA
           </p>
           <p className="truncate text-xs leading-tight text-zinc-500">Centro de Mando</p>
         </div>
@@ -1301,17 +1305,17 @@ function TopBar({ query, setQuery, placeholder, onLogout, perfil, alertas, activ
 }
 
 /* ------------------------------------------------------------------ */
-/* Vista 1 · Panel Macro (Control Directivo)                          */
+/* Vista 1 · Panel General (Control Directivo)                          */
 /* ------------------------------------------------------------------ */
 
-function VistaPanelMacro({ tablero, onVerActa, onAbrirSemaforo }) {
+function VistaPanelGeneral({ tablero, onVerActa, onAbrirSemaforo }) {
   const prestigio = tablero.prestigio;
   const proyectoPrestigio = prestigio?.proyecto;
   return (
     <div>
       <SectionHeader
         eyebrow="Módulo / Control Directivo"
-        title="Panel Macro"
+        title="Panel General"
         subtitle="Vista consolidada del estado general de Cinergia: salud por área, impacto organizacional y el proyecto insignia del mes."
       />
 
@@ -1694,221 +1698,203 @@ function VistaCalendario({ onVerActa, proyectos }) {
 /* Vista 4 · Analítica de Proyectos (CONECTADA A SUPABASE)            */
 /* ------------------------------------------------------------------ */
 
-function VistaAnaliticaProyectos({ tablero }) {
-  const [areaSeleccionada, setAreaSeleccionada] = useState("Todas");
-  const [datosTiempos, setDatosTiempos] = useState([]);
+const ICONO_TARJETA = {
+  Eventos: [CalendarDays, Users, CheckCircle2, Target],
+  Proyectos: [Layers, CheckCircle2, TrendingUp, Timer],
+  "Gestión de Oportunidades": [FileText, Handshake, ListChecks, Hourglass],
+};
 
-  // Extraer los cálculos matemáticos desde la vista de Supabase
-  useEffect(() => {
-    async function fetchTiempos() {
-      const { data, error } = await supabase.from('vista_tiempos_etapas').select('*');
-      if (!error && data) {
-        setDatosTiempos(data);
-      }
-    }
-    fetchTiempos();
-  }, []);
+function SelectorArea({ area, onCambiar, conteos }) {
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <div className="relative w-full sm:w-72">
+      <button
+        onClick={() => setAbierto(!abierto)}
+        className="flex w-full items-center gap-3 rounded-xl border border-zinc-800 px-4 py-2.5 text-left transition-colors hover:border-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+        style={{ backgroundColor: PANEL }}
+      >
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: AREA_COLOR[area] }} />
+        <span className="min-w-0 flex-1">
+          <span className="block font-mono text-[10px] uppercase tracking-widest text-zinc-500">Área</span>
+          <span className="block truncate text-sm font-semibold text-zinc-100">{area}</span>
+        </span>
+        <ChevronDown className={`h-4 w-4 text-zinc-500 transition-transform ${abierto ? "rotate-180" : ""}`} />
+      </button>
+      {abierto && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setAbierto(false)} />
+          <div className="absolute right-0 z-20 mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950 p-1.5 shadow-2xl">
+            {AREAS_ANALITICA.map((a) => (
+              <button
+                key={a}
+                onClick={() => { onCambiar(a); setAbierto(false); }}
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none ${
+                  a === area ? "bg-blue-500/10 text-zinc-100" : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
+                }`}
+              >
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: AREA_COLOR[a] }} />
+                <span className="flex-1">{a}</span>
+                <span className="font-mono text-xs text-zinc-500">{conteos[a]}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
-  // Motor de cálculo dinámico para el gráfico
-  const pipelineActivo = useMemo(() => {
-    // 1. Filtrar por el área seleccionada
-    const filtrados = areaSeleccionada === "Todas" 
-      ? datosTiempos 
-      : datosTiempos.filter(d => d.area === areaSeleccionada);
-      
-    // 2. Agrupar por etapa y sumar los días
-    const agrupados = filtrados.reduce((acc, curr) => {
-      if (!acc[curr.etapa]) {
-        acc[curr.etapa] = { totalDias: 0, count: 0 };
-      }
-      acc[curr.etapa].totalDias += curr.dias_transcurridos;
-      acc[curr.etapa].count += 1;
-      return acc;
-    }, {});
-
-    // 3. Definir el orden lógico del pipeline y promediar
-    const orden = ["Planificación Base", "Aprobación Directiva", "Ejecución Activa", "Revisión / QA", "Cierre Operativo"];
-    
-    return orden.map(etapa => ({
-      etapa,
-      dias: agrupados[etapa] ? Math.round(agrupados[etapa].totalDias / agrupados[etapa].count) : 0
-    }));
-  }, [datosTiempos, areaSeleccionada]);
-
-  const distribucionAnalitica = tablero.distribucion
-    .filter((d) => ["Eventos", "Marketing", "Proyectos"].includes(d.name))
-    .map((d) => ({ ...d, color: AREA_COLOR[d.name] }));
-  const k = tablero.kpiProyectos;
-
-  const colorActivo = areaSeleccionada === "Todas" ? CHART.emerald : (AREA_COLOR[areaSeleccionada] || CHART.emerald);
+function VistaAnaliticaProyectos({ tablero, datos, onVerActa }) {
+  const [area, setArea] = useState(AREAS_ANALITICA[0]);
+  const semaforo = tablero.semaforo.find((s) => s.area === area);
+  const analisis = useMemo(() => analizarArea(area, datos, semaforo), [area, datos, semaforo]);
+  const conteos = Object.fromEntries(AREAS_ANALITICA.map((a) => [a, datos.proyectos.filter((p) => p.area === a).length]));
+  const iconos = ICONO_TARJETA[area];
+  const { serie, dona } = analisis;
 
   return (
     <div>
-      <SectionHeader
-        eyebrow="Módulo / Analítica"
-        title="Analítica de Proyectos"
-        subtitle="Indicadores de ejecución del núcleo operativo (Eventos, Marketing, Proyectos)."
-      />
-
-      <div className="mb-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard Icon={CheckCircle2} label="Hitos en Fecha" value={k.hitos.value} suffix={k.hitos.suffix} delta={k.hitos.delta} trend={k.hitos.trend} />
-        <KpiCard Icon={Zap} label="Proyectos Activos" value={k.activos.value} suffix={k.activos.suffix} delta={k.activos.delta} trend={k.activos.trend} />
-        <KpiCard Icon={Timer} label="Tiempo de Cierre" value={k.tiempoCierre.value} suffix={k.tiempoCierre.suffix} delta={k.tiempoCierre.delta} trend={k.tiempoCierre.trend} />
-        <KpiCard Icon={Layers} label="Total de Proyectos" value={k.total.value} suffix={k.total.suffix} delta={k.total.delta} trend={k.total.trend} />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <SectionHeader
+          eyebrow="Módulo / Analítica"
+          title="Analítica de Proyectos"
+          subtitle="Resultados de cada área sumando todas sus actas. Elige el área en el selector."
+        />
+        <SelectorArea area={area} onCambiar={setArea} conteos={conteos} />
       </div>
 
-      <div className="mb-5 rounded-xl border border-zinc-800 p-5" style={{ backgroundColor: PANEL }}>
-        <h3 className="mb-1 text-sm font-semibold text-zinc-200">Carga de Lanzamientos / Flujo</h3>
-        <p className="mb-4 text-xs text-zinc-500">Proyectos activos al cierre de cada mes durante {new Date().getFullYear()}</p>
-        <div style={{ height: 260 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={tablero.cargaLanzamientos} margin={{ top: 5, right: 8, left: -8, bottom: 0 }}>
-              <defs>
-                <linearGradient id="flujoGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={CHART.blue} stopOpacity={0.35} />
-                  <stop offset="95%" stopColor={CHART.blue} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke={CHART.grid} strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="mes" stroke={CHART.grid} tick={{ fill: CHART.text, fontSize: 11 }} tickLine={false} axisLine={false} />
-              <YAxis stroke={CHART.grid} tick={{ fill: CHART.text, fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-              <Tooltip content={<ChartTooltip unit=" proyectos" />} cursor={{ stroke: CHART.grid }} />
-              <Area
-                type="monotone"
-                name="Proyectos en flujo"
-                dataKey="proyectos"
-                stroke={CHART.blue}
-                strokeWidth={2.5}
-                fill="url(#flujoGradient)"
-                dot={{ r: 3.5, fill: CHART.blue, strokeWidth: 0 }}
-                activeDot={{ r: 5 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+      {semaforo && (
+        <div className="mb-5 rounded-xl border border-zinc-800 p-5" style={{ backgroundColor: PANEL }}>
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="h-12 w-12 shrink-0 rounded-full" style={{ backgroundColor: semaforo.color }} />
+            <div className="min-w-0 flex-1">
+              <p className="font-mono text-xs uppercase tracking-wider text-zinc-500">Estado general del área</p>
+              <p className={`text-lg font-semibold ${semaforo.text}`}>{semaforo.estado}</p>
+              <p className="text-xs text-zinc-500">{semaforo.detalle}</p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-zinc-800 pt-4">
+            {semaforo.kpis.map((k) => (
+              <span key={k.kpi} className="inline-flex items-center gap-2 rounded-full border border-zinc-800 px-3 py-1 text-xs text-zinc-400">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: k.color }} />
+                {k.label}
+                <span className="font-mono font-semibold text-zinc-100">{k.valorNumerico == null ? "Sin datos" : k.value}</span>
+              </span>
+            ))}
+          </div>
         </div>
+      )}
+
+      <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {analisis.tarjetas.map((t, i) => (
+          <KpiCard key={t.clave} Icon={iconos[i]} label={t.label} value={t.value} suffix={t.suffix} detalle={t.detalle} />
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        <div className="rounded-xl border border-zinc-800 p-5" style={{ backgroundColor: PANEL }}>
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-semibold text-zinc-200">Pipeline Operativo</h3>
-            {areaSeleccionada !== "Todas" && (
-              <button 
-                onClick={() => setAreaSeleccionada("Todas")}
-                className="font-mono text-[10px] text-blue-400 hover:underline focus-visible:outline-none"
-              >
-                Ver Vista General ✕
-              </button>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="rounded-xl border border-zinc-800 p-5 lg:col-span-2" style={{ backgroundColor: PANEL }}>
+          <h3 className="mb-1 text-sm font-semibold text-zinc-200">{serie.titulo}</h3>
+          <p className="mb-4 text-xs text-zinc-500">{serie.subtitulo}</p>
+          <div style={{ height: 260 }}>
+            {serie.datos.length === 0 ? (
+              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-zinc-800 text-xs text-zinc-500">Sin datos</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={serie.datos} margin={{ top: 5, right: 8, left: -8, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="analiticaGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={AREA_COLOR[area]} stopOpacity={0.35} />
+                      <stop offset="95%" stopColor={AREA_COLOR[area]} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke={CHART.grid} strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="mes" stroke={CHART.grid} tick={{ fill: CHART.text, fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis stroke={CHART.grid} tick={{ fill: CHART.text, fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip content={<ChartTooltip unit={serie.unidad} />} cursor={{ stroke: CHART.grid }} />
+                  <Area
+                    type="monotone"
+                    name={serie.titulo}
+                    dataKey="valor"
+                    stroke={AREA_COLOR[area]}
+                    strokeWidth={2.5}
+                    fill="url(#analiticaGradient)"
+                    dot={{ r: 3.5, fill: AREA_COLOR[area], strokeWidth: 0 }}
+                    activeDot={{ r: 5 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             )}
           </div>
-          <p className="mb-4 text-xs text-zinc-500">
-            Días promedio por etapa {areaSeleccionada !== "Todas" ? `(${areaSeleccionada})` : "(General)"}
-          </p>
-          <div style={{ height: 260 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={pipelineActivo}
-                layout="vertical"
-                margin={{ top: 5, right: 24, left: 8, bottom: 0 }}
-              >
-                <CartesianGrid stroke={CHART.grid} strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" stroke={CHART.grid} tick={{ fill: CHART.text, fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                <YAxis
-                  type="category"
-                  dataKey="etapa"
-                  stroke={CHART.grid}
-                  tick={{ fill: CHART.text, fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={140}
-                />
-                <Tooltip content={<ChartTooltip unit=" días" />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-                <Bar 
-                  dataKey="dias" 
-                  name="Días promedio" 
-                  fill={colorActivo} 
-                  radius={[0, 6, 6, 0]} 
-                  barSize={18} 
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <p className="mt-3 text-xs text-zinc-500">
-            Filtrando métricas reales para: <span className="text-zinc-200 font-medium">{areaSeleccionada}</span>
-          </p>
         </div>
 
         <div className="rounded-xl border border-zinc-800 p-5" style={{ backgroundColor: PANEL }}>
-          <h3 className="mb-1 text-sm font-semibold text-zinc-200">Distribución Núcleo Operativo</h3>
-          <p className="mb-4 text-xs text-zinc-500">Haz clic en un área para aislar sus datos en el pipeline</p>
-          <div className="flex flex-col items-center gap-6 sm:flex-row">
-            <div style={{ height: 220, width: 220 }} className="shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={distribucionAnalitica} dataKey="value" nameKey="name" innerRadius={62} outerRadius={92} paddingAngle={3} stroke="none">
-                    {distribucionAnalitica.map((entry, i) => (
-                      <Cell 
-                        key={i} 
-                        fill={entry.color} 
-                        className="cursor-pointer transition-opacity hover:opacity-80 focus-visible:outline-none"
-                        onClick={() => setAreaSeleccionada(entry.name)}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip unit=" proyectos" />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex w-full flex-col gap-3">
-              {distribucionAnalitica.map((m) => {
-                const isSelected = areaSeleccionada === m.name;
-                return (
-                  <button
-                    key={m.name}
-                    onClick={() => setAreaSeleccionada(isSelected ? "Todas" : m.name)}
-                    className={`flex items-center justify-between rounded-lg border px-3 py-2.5 transition-all text-left w-full focus-visible:outline-none ${
-                      isSelected ? "border-blue-500/50 bg-blue-500/10" : "border-zinc-800 hover:border-zinc-700"
-                    }`}
-                  >
+          <h3 className="mb-1 text-sm font-semibold text-zinc-200">{dona.titulo}</h3>
+          <p className="mb-4 text-xs text-zinc-500">{dona.subtitulo}</p>
+          {dona.datos.length === 0 ? (
+            <div className="flex h-52 items-center justify-center rounded-lg border border-dashed border-zinc-800 text-xs text-zinc-500">Sin datos</div>
+          ) : (
+            <div className="flex flex-col items-center gap-5">
+              <div className="relative" style={{ height: 200, width: 200 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={dona.datos} dataKey="value" nameKey="name" innerRadius={62} outerRadius={92} paddingAngle={3} stroke="none">
+                      {dona.datos.map((d) => <Cell key={d.name} fill={d.color} />)}
+                    </Pie>
+                    <Tooltip content={<ChartTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="font-mono text-2xl font-semibold text-zinc-100">{dona.centro}</span>
+                  <span className="text-xs text-zinc-500">{dona.centroEtiqueta}</span>
+                </div>
+              </div>
+              <div className="flex w-full flex-col gap-2">
+                {dona.datos.map((d) => (
+                  <div key={d.name} className="flex items-center justify-between rounded-lg border border-zinc-800 px-3 py-2.5">
                     <div className="flex items-center gap-2.5">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: m.color }} />
-                      <span className="truncate text-sm text-zinc-300">{m.name}</span>
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                      <span className="truncate text-sm text-zinc-300">{d.name}</span>
                     </div>
-                    <span className="font-mono text-sm font-medium text-zinc-100">{m.value}</span>
-                  </button>
-                );
-              })}
+                    <span className="font-mono text-sm font-medium text-zinc-100">{d.value}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      <div className="mt-5 rounded-xl border border-zinc-800 p-5" style={{ backgroundColor: PANEL }}>
-        <h3 className="mb-1 text-sm font-semibold text-zinc-200">Registro de Auditoría</h3>
-        <p className="mb-4 text-xs text-zinc-500">Actividad reciente del sistema</p>
-        <ol className="grid grid-cols-1 gap-x-8 border-l border-zinc-800 pl-5 md:grid-cols-2">
-          {tablero.auditoria.length === 0 && (
-            <li className="mb-5 text-xs text-zinc-500">Sin actividad registrada.</li>
+      <details className="group mt-5">
+        <summary className="flex cursor-pointer list-none items-center gap-2 py-2 text-sm text-zinc-400 hover:text-zinc-200 [&::-webkit-details-marker]:hidden">
+          <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
+          Actas analizadas
+          <span className="rounded-full border border-zinc-800 px-2 font-mono text-xs text-zinc-500">{analisis.actas.length}</span>
+        </summary>
+        <div className="mt-2 overflow-x-auto rounded-xl border border-zinc-800 px-4 py-2" style={{ backgroundColor: PANEL }}>
+          {analisis.actas.length === 0 ? (
+            <p className="py-4 text-xs text-zinc-500">Todavía no hay actas cargadas en esta área.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left font-mono text-xs uppercase tracking-wider text-zinc-500">
+                  <th className="py-2 pr-4 font-medium">Acta</th>
+                  <th className="py-2 pr-4 font-medium">Fecha</th>
+                  <th className="py-2 font-medium">Etapa</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analisis.actas.map((p) => (
+                  <tr key={p.id} onClick={() => onVerActa(p)} className="cursor-pointer border-t border-zinc-800 text-zinc-300 hover:bg-zinc-900/50">
+                    <td className="py-2.5 pr-4">{p.nombre}</td>
+                    <td className="whitespace-nowrap py-2.5 pr-4 font-mono text-xs text-zinc-500">{p.fecha || "Sin fecha"}</td>
+                    <td className="py-2.5"><StatusBadge estado={p.estado} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
-          {tablero.auditoria.map((evento, i) => {
-            const log = { ...evento, ...(ICONO_AUDITORIA[evento.tipo] || ICONO_AUDITORIA.proyecto) };
-            return (
-            <li key={i} className="relative mb-5">
-              <span
-                className={`absolute top-1 h-2.5 w-2.5 rounded-full ${log.dot}`}
-                style={{ left: "-21px", boxShadow: `0 0 0 4px ${PANEL}` }}
-              />
-              <div className="flex items-center gap-1.5">
-                <log.Icon className={`h-3.5 w-3.5 ${log.color}`} />
-                <p className="text-xs font-semibold text-zinc-200">{log.titulo}</p>
-              </div>
-              <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">{log.detalle}</p>
-              <p className="mt-1 font-mono text-xs text-zinc-600">{log.hora}</p>
-            </li>
-            );
-          })}
-        </ol>
-      </div>
+        </div>
+      </details>
     </div>
   );
 }
@@ -2146,14 +2132,14 @@ function ConfiguracionDrawer({ abierto, onClose, proyectos, onSync, modoEstricto
         <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-8">
           
           <div>
-            <h3 className="mb-4 text-sm font-semibold text-zinc-200">Motor de Ingestión (Python)</h3>
+            <h3 className="mb-4 text-sm font-semibold text-zinc-200">Lectura de actas</h3>
             <div 
               onClick={() => setModoEstricto(!modoEstricto)}
               className="flex items-center justify-between p-3 border border-zinc-800 rounded-lg bg-zinc-900/30 cursor-pointer hover:bg-zinc-800/40 transition-colors"
             >
               <div>
-                <p className="text-sm text-zinc-300">Modo Estricto de Parser</p>
-                <p className="text-[11px] text-zinc-500">Rechazar actas si falta el nombre, el área o el responsable.</p>
+                <p className="text-sm text-zinc-300">Modo estricto</p>
+                <p className="text-[11px] text-zinc-500">Rechazar actas que no indiquen un responsable.</p>
               </div>
               <div className={`w-10 h-5 rounded-full relative transition-colors ${modoEstricto ? 'bg-blue-600' : 'bg-zinc-700'}`}>
                 <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${modoEstricto ? 'right-1' : 'left-1'}`}></div>
@@ -2201,15 +2187,13 @@ function PantallaLogin() {
   const [entrando, setEntrando] = useState(false);
 
   // Generamos 20 estelas con posiciones y velocidades aleatorias
-  const estelas = useMemo(() => {
-    return Array.from({ length: 20 }).map((_, i) => ({
-      id: i,
-      left: `${Math.random() * 100}%`,
-      animationDuration: `${Math.random() * 3 + 2}s`,
-      animationDelay: `${Math.random() * 2}s`,
-      opacity: Math.random() * 0.5 + 0.2
-    }));
-  }, []);
+  const [estelas] = useState(() => Array.from({ length: 20 }).map((_, i) => ({
+    id: i,
+    left: `${Math.random() * 100}%`,
+    animationDuration: `${Math.random() * 3 + 2}s`,
+    animationDelay: `${Math.random() * 2}s`,
+    opacity: Math.random() * 0.5 + 0.2,
+  })));
 
   const handleIngreso = async (e) => {
     e.preventDefault();
@@ -2272,10 +2256,8 @@ function PantallaLogin() {
 
       <div className="relative z-10 w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950/80 p-8 shadow-[0_0_50px_-12px_rgba(59,130,246,0.25)] backdrop-blur-xl">
         <div className="mb-8 flex flex-col items-center">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-emerald-500 shadow-lg shadow-blue-500/20">
-            <span className="font-mono text-2xl font-bold text-white">C</span>
-          </div>
-          <h1 className="text-xl font-bold text-zinc-100 tracking-tight">CINERGIA OS</h1>
+          <img src="/cinergia.png" alt="Cinergia" className="mb-4 h-14 w-14 rounded-xl bg-white object-contain p-1 shadow-lg shadow-blue-500/20" />
+          <h1 className="text-xl font-bold text-zinc-100 tracking-tight">CINERGIA</h1>
           <p className="text-sm text-zinc-500">Centro de Mando Operativo</p>
         </div>
 
@@ -2382,7 +2364,7 @@ function TarjetaCredenciales({ perfil, obligatorio, onListo, onCancelar }) {
         <p className="mt-1 text-sm text-zinc-500">
           {obligatorio
             ? "Primer ingreso: define el usuario y la contraseña que usarás desde ahora. El DNI deja de funcionar como contraseña."
-            : "Actualiza tus credenciales de acceso a CINERGIA OS."}
+            : "Actualiza tus credenciales de acceso a CINERGIA."}
         </p>
       </div>
 
@@ -2620,7 +2602,7 @@ export default function CinergiaOS() {
 
   const [perfilConsultado, setPerfilConsultado] = useState({ id: null, fila: null });
 
-  const [vistaActiva, setVistaActiva] = useState("macro");
+  const [vistaActiva, setVistaActiva] = useState("general");
   const [query, setQuery] = useState("");
   const [actaAbiertaId, setActaAbiertaId] = useState(null);
   const [semaforoArea, setSemaforoArea] = useState(null);
@@ -2708,6 +2690,8 @@ export default function CinergiaOS() {
 
   useEffect(() => {
     if (!usuarioId) return;
+    // Carga inicial al iniciar sesión. Los estados se actualizan cuando llega la respuesta.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     recargarTodo();
   }, [usuarioId, recargarTodo]);
 
@@ -2729,7 +2713,7 @@ export default function CinergiaOS() {
   const semaforoAbierto = tablero.semaforo.find((s) => s.area === semaforoArea) || null;
   const abrirActa = (p) => setActaAbiertaId(p ? p.id : null);
   const placeholders = {
-    macro: "Buscar proyectos, actas, cronograma…",
+    general: "Buscar proyectos, actas, cronograma…",
     portafolio: "Buscar por nombre, ID o responsable…",
   };
 
@@ -2748,7 +2732,7 @@ export default function CinergiaOS() {
   if (!perfil) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center gap-4 bg-zinc-950 px-4 text-center">
-        <p className="text-sm text-zinc-300">Esta cuenta no tiene un acceso activo en CINERGIA OS.</p>
+        <p className="text-sm text-zinc-300">Esta cuenta no tiene un acceso activo en CINERGIA.</p>
         <p className="text-xs text-zinc-500">Solicita la habilitación al SuperAdmin de la directiva.</p>
         <button onClick={() => supabase.auth.signOut()} className="rounded-lg border border-zinc-800 px-4 py-2 text-xs text-zinc-300 hover:text-zinc-100">
           Desconectar
@@ -2781,10 +2765,10 @@ export default function CinergiaOS() {
           {errorDatos && (
             <div className="mb-6 rounded-lg border border-red-900/30 bg-red-500/10 p-3 text-xs text-red-400">{errorDatos}</div>
           )}
-          {vistaActiva === "macro" && <VistaPanelMacro tablero={tablero} onVerActa={abrirActa} onAbrirSemaforo={(s) => setSemaforoArea(s.area)} />}
+          {vistaActiva === "general" && <VistaPanelGeneral tablero={tablero} onVerActa={abrirActa} onAbrirSemaforo={(s) => setSemaforoArea(s.area)} />}
           {vistaActiva === "portafolio" && <VistaPortafolio query={query} onVerActa={abrirActa} onAgregarProyecto={() => setCreandoProyecto(true)} datosProyectos={datos.proyectos} puedeEditar={puedeEditar} />}
           {vistaActiva === "calendario" && <VistaCalendario onVerActa={abrirActa} proyectos={datos.proyectos} />}
-          {vistaActiva === "analitica-proyectos" && <VistaAnaliticaProyectos tablero={tablero} />}
+          {vistaActiva === "analitica-proyectos" && <VistaAnaliticaProyectos tablero={tablero} datos={datos} onVerActa={abrirActa} />}
           {vistaActiva === "analitica-marketing" && (
             <VistaAnaliticaMarketing
               datos={datos}

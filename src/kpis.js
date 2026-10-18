@@ -604,6 +604,17 @@ function horaAuditoria(fecha, ahora) {
   return `${formatoFechaCorta(d)} · ${hh}`;
 }
 
+function conveniosActivos(proyectos, ahora) {
+  const hoy = new Date(ahora);
+  hoy.setHours(0, 0, 0, 0);
+  const documentos = proyectos.filter((p) => p.area === "Gestión de Oportunidades");
+  if (!documentos.length) return null;
+  return documentos.filter((p) => {
+    const vence = aFecha(p.vigente_hasta);
+    return p.tipo_acta !== "propuesta" && p.estado_actual !== ETAPA_FINAL && !(vence && vence < hoy);
+  }).length;
+}
+
 export function calcularTablero(datos, filasUmbrales, ahora = new Date()) {
   const ctx = construirContexto(datos);
   const umbrales = combinarUmbrales(filasUmbrales);
@@ -624,7 +635,7 @@ export function calcularTablero(datos, filasUmbrales, ahora = new Date()) {
   const sumar = (campo) => cierresAnio.reduce((acc, c) => acc + Number(c[campo] || 0), 0);
   const impacto = [
     { clave: "personas", label: `Personas impactadas ${ahora.getFullYear()}`, valor: cierresAnio.length ? sumar("asistentes_reales") : null, suffix: "pax" },
-    { clave: "convenios", label: "Convenios institucionales activos", valor: null, suffix: "" },
+    { clave: "convenios", label: "Convenios institucionales activos", valor: conveniosActivos(ctx.proyectos, ahora), suffix: "" },
     { clave: "voluntariado", label: "Horas de voluntariado generadas", valor: cierresAnio.length ? sumar("horas_voluntariado") : null, suffix: "hrs" },
     { clave: "social", label: "Proyectos con impacto social directo", valor: cierresAnio.length ? cierresAnio.filter((c) => c.impacto_social).length : null, suffix: "" },
   ];

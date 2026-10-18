@@ -185,7 +185,7 @@ class ClienteInstagram:
             consulta = {**(params or {}), "access_token": self.token}
         try:
             r = self._http.get(url, params=consulta)
-        except httpx.HTTPError as e:
+        except httpx.HTTPError:
             raise ErrorInstagram("No se pudo conectar con Instagram. Intenta de nuevo en unos minutos.") from None
         try:
             cuerpo = r.json()
@@ -562,7 +562,7 @@ def sincronizar(db, ahora: datetime | None = None, transport: httpx.BaseTranspor
     except ErrorInstagram as e:
         marcar_error(db, str(e), desconectar=e.token_invalido)
         raise
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         registro.exception("Falló la sincronización de Instagram")
         mensaje = "Error interno al guardar los datos. Revisa los registros del servidor."
         marcar_error(db, mensaje)

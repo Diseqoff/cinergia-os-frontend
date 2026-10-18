@@ -16,7 +16,7 @@ export async function llamarApi(ruta, { method = "GET", body, formData } = {}) {
       body: formData || (body ? JSON.stringify(body) : undefined),
     });
   } catch {
-    throw new Error("No hay conexión con el servidor de CINERGIA OS.");
+    throw new Error("No hay conexión con el servidor de Cinergia.");
   }
   const json = await resp.json().catch(() => ({}));
   if (!resp.ok) {

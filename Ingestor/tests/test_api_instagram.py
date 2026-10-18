@@ -1,6 +1,5 @@
 """Pruebas de los endpoints de Instagram con permisos, sin red."""
 
-import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -8,9 +7,6 @@ from pathlib import Path
 import httpx
 import pytest
 
-os.environ.setdefault("SUPABASE_URL", "https://proyecto.supabase.co")
-os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.firma")
-os.environ["CRON_SECRET"] = "secreto-cron-de-prueba"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
