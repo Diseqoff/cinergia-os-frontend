@@ -153,7 +153,7 @@ function BarraAcciones({ conexion, puedeEditar, esSuperadmin, onActualizar, actu
       <div className="flex items-center gap-2.5 text-xs text-zinc-400">
         <span className={`h-2 w-2 rounded-full ${conectada ? "bg-emerald-500" : "bg-zinc-600"}`} />
         {conectada
-          ? <span>Instagram conectado como <span className="text-zinc-200">@{conexion.usuario}</span>. Actualizado {haceCuanto(conexion.ultima_sincronizacion)}.</span>
+          ? <span>Instagram conectado como <span className="text-zinc-200">@{conexion.usuario}</span>. {conexion.ultima_sincronizacion ? `Actualizado ${haceCuanto(conexion.ultima_sincronizacion)}.` : "Todavía no tiene una actualización completa."}</span>
           : <span>Instagram sin conectar. Los datos de redes se cargan a mano.</span>}
       </div>
       <div className="flex flex-wrap items-center gap-3">

@@ -1,5 +1,5 @@
 -- =====================================================================
--- CINERGIA OS · Migración 002
+-- CINERGIA · Migración 002
 -- Publicaciones de Marketing, métricas diarias de Instagram y conexión
 --
 -- Requiere haber ejecutado antes la migración 001.
@@ -79,7 +79,7 @@ create table if not exists public.instagram_diario (
   seguidores integer check (seguidores >= 0),
   alcance integer check (alcance >= 0),
   vistas integer check (vistas >= 0),
-  interacciones integer check (interacciones >= 0),
+  interacciones integer,
   nuevos_seguidores integer,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
