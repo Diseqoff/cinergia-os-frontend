@@ -360,7 +360,8 @@ const CALCULOS = {
   mk_calendario(ctx, desde, hasta) {
     const { actual } = marketingDelPeriodo(ctx, hasta);
     if (!actual || !actual.publicaciones_planificadas) return null;
-    return pct(Number(actual.publicaciones_realizadas || 0), Number(actual.publicaciones_planificadas));
+    const v = pct(Number(actual.publicaciones_realizadas || 0), Number(actual.publicaciones_planificadas));
+    return v == null ? null : Math.min(100, v);
   },
   mk_seguidores(ctx, desde, hasta) {
     const { actual, anterior } = marketingDelPeriodo(ctx, hasta);
@@ -379,7 +380,7 @@ const CALCULOS = {
   },
   mk_menciones(ctx, desde, hasta) {
     const { actual } = marketingDelPeriodo(ctx, hasta);
-    return actual ? Number(actual.menciones_medios || 0) : null;
+    return actual && actual.menciones_medios != null ? Number(actual.menciones_medios) : null;
   },
   mk_anticipacion(ctx, desde, hasta) {
     const piezas = ctx.compromisos.filter((c) => {
@@ -791,6 +792,45 @@ export function calcularTablero(datos, filasUmbrales, ahora = new Date()) {
     marketing: marketingVista,
     alertas,
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Series mensuales de KPIs                                           */
+/* ------------------------------------------------------------------ */
+
+const KPIS_CON_FILA_MENSUAL = new Set(["mk_calendario", "mk_seguidores", "mk_engagement", "mk_menciones"]);
+
+function mismoMes(fecha, referencia) {
+  return !!fecha && fecha.getFullYear() === referencia.getFullYear() && fecha.getMonth() === referencia.getMonth();
+}
+
+/* Valor de cada KPI en cada uno de los últimos meses, con su nivel de semáforo.
+   Los KPIs que se leen de metricas_marketing solo cuentan si ese mes tiene fila propia. */
+export function seriesMensuales(datos, filasUmbrales, ids, cantidad = 6, ahora = new Date()) {
+  const ctx = construirContexto(datos);
+  const umbrales = combinarUmbrales(filasUmbrales);
+  const salida = {};
+  ids.forEach((id) => {
+    const u = umbrales.get(id);
+    if (!u) return;
+    const puntos = [];
+    for (let i = cantidad - 1; i >= 0; i -= 1) {
+      const inicio = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+      const fin = new Date(inicio.getFullYear(), inicio.getMonth() + 1, 0, 23, 59, 59, 999);
+      const hasta = fin > ahora ? ahora : fin;
+      let valor = null;
+      const tieneFila = !KPIS_CON_FILA_MENSUAL.has(id) || ctx.marketing.some((m) => mismoMes(aFecha(m.periodo), inicio));
+      if (tieneFila) valor = calcularKpi(ctx, u, inicio, hasta, hasta);
+      puntos.push({
+        periodo: aISODate(inicio).slice(0, 7),
+        etiqueta: MESES_CORTOS[inicio.getMonth()],
+        valor,
+        nivel: evaluar(valor, u),
+      });
+    }
+    salida[id] = { umbral: u, puntos };
+  });
+  return salida;
 }
 
 /* ------------------------------------------------------------------ */

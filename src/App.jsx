@@ -1,5 +1,11 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
+import { llamarApi } from "./api";
+import { VistaAnaliticaMarketing } from "./Marketing";
+import { combinarMetricasMensuales } from "./marketingDatos";
+import { MetricasMarketingModal, PublicacionModal, InstagramModal } from "./MarketingFormularios";
+import { PANEL, CHART, CAMPO_FORM, ETIQUETA_FORM } from "./tokens";
+import { ChartTooltip, SectionHeader, ModalRegistro, CampoNumero, CampoFecha, TituloBloque } from "./ui";
 import {
   AREAS, ETAPAS, TIPOS_COMPROMISO, ETIQUETA_FECHA_SOLICITUD,
   calcularTablero, aFecha, formatoFechaCorta, estadoCompromiso, siguienteEtapa, diasEnEtapa,
@@ -22,23 +28,6 @@ import {
 /* Tokens & datos                                                     */
 /* ------------------------------------------------------------------ */
 
-// Motor de ingestión de actas y administración de cuentas (FastAPI).
-// VITE_API_URL define el servidor; sin esa variable se usa el de producción.
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://cinergia-os-frontend.onrender.com";
-
-const PANEL = "#121214";
-
-const CHART = {
-  blue: "#2563eb",
-  blueSoft: "#60a5fa",
-  emerald: "#10b981",
-  amber: "#f59e0b",
-  red: "#ef4444",
-  muted: "#71717a",
-  grid: "#27272a",
-  text: "#a1a1aa",
-};
-
 const AREA_COLOR = {
   Eventos: CHART.blue,
   Marketing: CHART.amber,
@@ -59,26 +48,6 @@ const ICONO_AUDITORIA = {
 
 const ICONO_IMPACTO = { personas: Users, convenios: Building2, voluntariado: Timer, social: Award };
 const ICONO_TRANSVERSAL = { tr_externos: ClipboardList, tr_satisfaccion: Star, tr_puntualidad: Timer, tr_planes: ShieldCheck };
-
-async function llamarApi(ruta, { method = "GET", body, formData } = {}) {
-  const { data } = await supabase.auth.getSession();
-  const headers = { Authorization: `Bearer ${data.session?.access_token || ""}` };
-  if (body) headers["Content-Type"] = "application/json";
-  let resp;
-  try {
-    resp = await fetch(`${API_BASE_URL}${ruta}`, {
-      method,
-      headers,
-      body: formData || (body ? JSON.stringify(body) : undefined),
-    });
-  } catch {
-    throw new Error("No hay conexión con el servidor de CINERGIA OS.");
-  }
-  const json = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new Error(json.detail || "El servidor rechazó la solicitud.");
-  return json;
-}
-
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -118,36 +87,6 @@ function StatusBadge({ estado }) {
   );
 }
 
-function ChartTooltip({ active, payload, label, unit = "" }) {
-  if (!active || !payload || !payload.length) return null;
-  return (
-    <div
-      className="rounded-lg border border-zinc-800 px-3 py-2 text-xs shadow-xl"
-      style={{ backgroundColor: PANEL }}
-    >
-      {label && <p className="mb-1 font-mono text-zinc-500">{label}</p>}
-      {payload.map((p, i) => (
-        <p key={i} className="font-mono font-medium text-zinc-200">
-          {p.name ? `${p.name}: ` : ""}
-          {typeof p.value === "number" ? p.value.toLocaleString("es-PE") : p.value}
-          {unit}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-function SectionHeader({ eyebrow, title, subtitle }) {
-  return (
-    <div className="mb-8">
-      <p className="mb-2 font-mono text-xs font-medium uppercase tracking-widest text-blue-500">
-        {eyebrow}
-      </p>
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">{title}</h1>
-      <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-zinc-500">{subtitle}</p>
-    </div>
-  );
-}
 
 function ProjectCard({ p, onVerActa }) {
   const a = areaClasses(p.area);
@@ -216,9 +155,6 @@ function KpiCard({ Icon, label, value, suffix, delta, trend }) {
 /* ------------------------------------------------------------------ */
 /* Drawer / Slide-over "Ver Acta" (ACTUALIZADO A SSOT)                */
 /* ------------------------------------------------------------------ */
-
-const CAMPO_FORM = "w-full rounded border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-200 outline-none focus:border-zinc-600";
-const ETIQUETA_FORM = "text-[10px] text-zinc-500 uppercase mb-1";
 
 function ActaDrawer({ proyecto, onClose, compromisos, historial, cierre, puedeEditar, onCambio, onRegistrarCierre }) {
   const abierto = !!proyecto;
@@ -1978,87 +1914,6 @@ function VistaAnaliticaProyectos({ tablero }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Vista 5 · Analítica de Marketing                                   */
-/* ------------------------------------------------------------------ */
-
-function VistaAnaliticaMarketing({ tablero, puedeEditar, onRegistrarMetricas }) {
-  const m = tablero.marketing;
-  return (
-    <div>
-      <SectionHeader
-        eyebrow="Módulo / Analítica"
-        title="Analítica de Marketing"
-        subtitle="Desempeño de la marca Cinergia en redes y comparación entre alcance digital y asistencia real a eventos."
-      />
-
-      {puedeEditar && (
-        <div className="mb-6 flex justify-end border-b border-zinc-800/50 pb-4">
-          <button
-            onClick={onRegistrarMetricas}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 shadow-lg shadow-blue-500/20"
-          >
-            <Plus className="h-4 w-4" />
-            Registrar Métricas del Mes
-          </button>
-        </div>
-      )}
-
-      <div className="mb-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard Icon={Zap} label="Engagement Rate" value={m.engagement.value} suffix={m.engagement.suffix} delta={m.engagement.delta} trend={m.engagement.trend} />
-        <KpiCard Icon={TrendingUp} label="Crecimiento de Seguidores" value={m.seguidores.value} suffix={m.seguidores.suffix} delta={m.seguidores.delta} trend={m.seguidores.trend} />
-        <KpiCard Icon={Users} label="Alcance Mensual" value={m.alcance.value} delta={m.alcance.delta} trend={m.alcance.trend} />
-        <KpiCard Icon={Megaphone} label="Eventos Promocionados" value={m.promocionados.value} suffix="" delta={m.promocionados.delta} trend={m.promocionados.trend} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        <div className="rounded-xl border border-zinc-800 p-5" style={{ backgroundColor: PANEL }}>
-          <h3 className="mb-1 text-sm font-semibold text-zinc-200">Alcance Digital por Evento</h3>
-          <p className="mb-4 text-xs text-zinc-500">Alcance en redes sociales, en miles de personas</p>
-          <div className="relative" style={{ height: 300 }}>
-            {m.alcancePorEvento.length === 0 && (
-              <p className="absolute inset-0 flex items-center justify-center text-xs text-zinc-500">Sin cierres con alcance digital registrado.</p>
-            )}
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={m.alcancePorEvento} margin={{ top: 5, right: 8, left: -8, bottom: 0 }}>
-                <CartesianGrid stroke={CHART.grid} strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="evento" stroke={CHART.grid} tick={{ fill: CHART.text, fontSize: 10 }} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={56} />
-                <YAxis stroke={CHART.grid} tick={{ fill: CHART.text, fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip content={<ChartTooltip unit="k alcance" />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-                <Bar dataKey="alcanceK" name="Alcance (miles)" fill={CHART.blue} radius={[6, 6, 0, 0]} barSize={32} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-zinc-800 p-5" style={{ backgroundColor: PANEL }}>
-          <h3 className="mb-1 text-sm font-semibold text-zinc-200">Asistencia Real por Evento</h3>
-          <p className="mb-4 text-xs text-zinc-500">Personas que asistieron presencialmente</p>
-          <div className="relative" style={{ height: 300 }}>
-            {m.asistenciaPorEvento.length === 0 && (
-              <p className="absolute inset-0 flex items-center justify-center text-xs text-zinc-500">Sin cierres con asistencia real registrada.</p>
-            )}
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={m.asistenciaPorEvento} margin={{ top: 5, right: 8, left: -8, bottom: 0 }}>
-                <CartesianGrid stroke={CHART.grid} strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="evento" stroke={CHART.grid} tick={{ fill: CHART.text, fontSize: 10 }} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={56} />
-                <YAxis stroke={CHART.grid} tick={{ fill: CHART.text, fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip content={<ChartTooltip unit=" pax" />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-                <Bar dataKey="asistencia" name="Asistencia" fill={CHART.emerald} radius={[6, 6, 0, 0]} barSize={32} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          {m.pendienteDeCierre && (
-            <p className="mt-3 text-xs text-zinc-500">
-              <span className="text-amber-400">{m.pendienteDeCierre.nombre}</span> aún no registra asistencia real.
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Módulo: Accesos de Área (RBAC)                                     */
 /* ------------------------------------------------------------------ */
 
@@ -2581,97 +2436,15 @@ function ModalCredenciales({ abierto, perfil, onClose, onListo }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Modal genérico de registro · mismo diseño del registro de proyecto */
-/* ------------------------------------------------------------------ */
-
-function ModalRegistro({ abierto, onClose, eyebrow, titulo, Icono, children, onGuardar, guardando, error, textoGuardar }) {
-  if (!abierto) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div onClick={onClose} className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-300" />
-      <div
-        className="relative flex max-h-full w-full max-w-4xl flex-col rounded-2xl border border-zinc-800 shadow-2xl overflow-hidden"
-        style={{ backgroundColor: PANEL }}
-        role="dialog"
-        aria-modal="true"
-      >
-        <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-950/50 px-6 py-5">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 shadow-inner">
-              <Icono className="h-6 w-6 text-blue-500" />
-            </div>
-            <div>
-              <p className="font-mono text-xs text-zinc-500 uppercase tracking-widest">{eyebrow}</p>
-              <h2 className="text-xl font-bold text-zinc-100">{titulo}</h2>
-            </div>
-          </div>
-          <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-100 transition-colors focus-visible:outline-none">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
-          {children}
-          {error && (
-            <div className="mt-6 rounded-lg border border-red-900/30 bg-red-500/10 p-3 text-xs text-red-400">{error}</div>
-          )}
-        </div>
-
-        <div className="border-t border-zinc-800 bg-zinc-950/80 p-6 flex items-center justify-end gap-4 shrink-0">
-          <button onClick={onClose} className="rounded-lg border border-zinc-700 px-6 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors">
-            Cancelar
-          </button>
-          <button
-            onClick={onGuardar}
-            disabled={guardando}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-2.5 text-sm font-medium text-white hover:bg-blue-500 shadow-[0_0_20px_-5px_rgba(59,130,246,0.5)] transition-all disabled:opacity-60 disabled:cursor-wait"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            {guardando ? "Guardando…" : textoGuardar}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CampoNumero({ label, value, onChange, step = "1", min = "0", max }) {
-  return (
-    <div className="flex flex-col">
-      <label className={ETIQUETA_FORM}>{label}</label>
-      <input type="number" step={step} min={min} max={max} value={value ?? ""} onChange={(e) => onChange(e.target.value)} className={CAMPO_FORM} />
-    </div>
-  );
-}
-
-function CampoFecha({ label, value, onChange }) {
-  return (
-    <div className="flex flex-col">
-      <label className={ETIQUETA_FORM}>{label}</label>
-      <input type="date" value={value || ""} onChange={(e) => onChange(e.target.value)} className={CAMPO_FORM} />
-    </div>
-  );
-}
-
-function TituloBloque({ color, children }) {
-  const estilos = {
-    blue: "bg-blue-900/20 border-blue-500/30 text-blue-400",
-    emerald: "bg-emerald-900/20 border-emerald-500/30 text-emerald-400",
-  };
-  return (
-    <div className={`border px-3 py-1.5 mb-4 rounded inline-block ${estilos[color]}`}>
-      <h3 className="text-xs font-bold uppercase tracking-widest">{children}</h3>
-    </div>
-  );
-}
-
 const CIERRE_VACIO = {
   fecha_real_ejecucion: "", asistentes_reales: "", satisfaccion_participantes: "", satisfaccion_aliados: "",
   fecha_entrega_memoria: "", inicio_difusion: "", incidencias_mayores: "0", aliados_confirmados: "0",
   menciones_externas: "0", alcance_digital: "", registro_audiovisual: false, horas_voluntariado: "",
   impacto_social: false, observaciones: "",
+  inscritos: "", participantes_totales: "", respuestas_encuesta: "", meta_asistencia: "",
 };
+
+const FUENTES_CIERRE = ["WhatsApp", "Instagram", "Visita a aulas", "Amigos", "Otro"];
 
 function formularioCierre(proyecto, cierre) {
   const base = { ...CIERRE_VACIO };
@@ -2682,6 +2455,8 @@ function formularioCierre(proyecto, cierre) {
   } else if (proyecto) {
     base.fecha_real_ejecucion = proyecto.fecha_programada || "";
   }
+  const guardadas = cierre?.fuentes_difusion && typeof cierre.fuentes_difusion === "object" ? cierre.fuentes_difusion : {};
+  base.fuentes = Object.fromEntries(FUENTES_CIERRE.map((f) => [f, guardadas[f] != null ? String(guardadas[f]) : ""]));
   return base;
 }
 
@@ -2707,6 +2482,28 @@ function CierreModal({ proyecto, cierre, onClose, onGuardado }) {
         return;
       }
     }
+    const inscritos = num(form.inscritos);
+    const asistentes = num(form.asistentes_reales);
+    const participantes = num(form.participantes_totales);
+    const encuesta = num(form.respuestas_encuesta);
+    const fuentes = Object.fromEntries(FUENTES_CIERRE.map((f) => [f, num(form.fuentes[f])]).filter(([, v]) => v != null && v > 0));
+    const sumaFuentes = Object.values(fuentes).reduce((a, v) => a + v, 0);
+    if (inscritos != null && asistentes != null && asistentes > inscritos) {
+      setError("Los asistentes reales no pueden superar a los inscritos. Si hubo personas sin inscripción, anótalas en participantes totales.");
+      return;
+    }
+    if (participantes != null && asistentes != null && participantes < asistentes) {
+      setError("Los participantes totales no pueden ser menos que los asistentes reales.");
+      return;
+    }
+    if (encuesta != null && (participantes ?? asistentes) != null && encuesta > (participantes ?? asistentes)) {
+      setError("Las respuestas de la encuesta no pueden superar a los participantes.");
+      return;
+    }
+    if (inscritos != null && sumaFuentes > inscritos) {
+      setError("La suma de los medios por los que se enteraron supera a los inscritos.");
+      return;
+    }
     setGuardando(true);
     try {
       const { error: e } = await supabase.from("cierres_evento").upsert({
@@ -2725,6 +2522,11 @@ function CierreModal({ proyecto, cierre, onClose, onGuardado }) {
         horas_voluntariado: num(form.horas_voluntariado),
         impacto_social: form.impacto_social,
         observaciones: form.observaciones.trim() || null,
+        inscritos,
+        participantes_totales: participantes,
+        respuestas_encuesta: encuesta,
+        meta_asistencia: num(form.meta_asistencia),
+        fuentes_difusion: fuentes,
         updated_at: new Date().toISOString(),
       }, { onConflict: "proyecto_id" });
       if (e) throw e;
@@ -2787,101 +2589,20 @@ function CierreModal({ proyecto, cierre, onClose, onGuardado }) {
           </div>
         </div>
       </div>
-    </ModalRegistro>
-  );
-}
 
-function MetricasMarketingModal({ abierto, onClose, onGuardado, registros }) {
-  const mesActual = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  };
-  const formularioDe = (mes) => {
-    const existente = registros.find((r) => (r.periodo || "").slice(0, 7) === mes);
-    return {
-      seguidores: existente?.seguidores ?? "",
-      alcance: existente?.alcance ?? "",
-      interacciones: existente?.interacciones ?? "",
-      publicaciones_planificadas: existente?.publicaciones_planificadas ?? "",
-      publicaciones_realizadas: existente?.publicaciones_realizadas ?? "",
-      menciones_medios: existente?.menciones_medios ?? "0",
-    };
-  };
-  const [periodo, setPeriodo] = useState(mesActual);
-  const [form, setForm] = useState(() => formularioDe(mesActual()));
-  const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState("");
-
-  const cambiarPeriodo = (mes) => {
-    setPeriodo(mes);
-    setForm(formularioDe(mes));
-  };
-
-  const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
-  const num = (v) => (v === "" || v == null ? null : Number(v));
-
-  const guardar = async () => {
-    setError("");
-    if (!periodo || num(form.seguidores) == null) {
-      setError("El mes y el total de seguidores son obligatorios.");
-      return;
-    }
-    setGuardando(true);
-    try {
-      const { error: e } = await supabase.from("metricas_marketing").upsert({
-        periodo: `${periodo}-01`,
-        seguidores: num(form.seguidores),
-        alcance: num(form.alcance),
-        interacciones: num(form.interacciones),
-        publicaciones_planificadas: num(form.publicaciones_planificadas),
-        publicaciones_realizadas: num(form.publicaciones_realizadas),
-        menciones_medios: num(form.menciones_medios) ?? 0,
-      }, { onConflict: "periodo" });
-      if (e) throw e;
-      await onGuardado?.();
-      onClose();
-    } catch (e) {
-      setError("No se pudieron guardar las métricas: " + e.message);
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  return (
-    <ModalRegistro
-      abierto={abierto}
-      onClose={onClose}
-      eyebrow="Área de Marketing"
-      titulo="Métricas del Mes"
-      Icono={Megaphone}
-      onGuardar={guardar}
-      guardando={guardando}
-      error={error}
-      textoGuardar="Guardar Métricas"
-    >
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="flex flex-col gap-4">
-          <TituloBloque color="blue">1. Redes Sociales</TituloBloque>
-          <div className="flex flex-col">
-            <label className={ETIQUETA_FORM}>Mes</label>
-            <input type="month" value={periodo} onChange={(e) => cambiarPeriodo(e.target.value)} className={CAMPO_FORM} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <CampoNumero label="Seguidores al cierre del mes" value={form.seguidores} onChange={set("seguidores")} />
-            <CampoNumero label="Alcance del mes" value={form.alcance} onChange={set("alcance")} />
-            <CampoNumero label="Interacciones del mes" value={form.interacciones} onChange={set("interacciones")} />
-            <CampoNumero label="Menciones en medios" value={form.menciones_medios} onChange={set("menciones_medios")} />
-          </div>
+      <div className="mt-8 border-t border-zinc-800 pt-6">
+        <TituloBloque color="blue">3. De la difusión a la asistencia</TituloBloque>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <CampoNumero label="Inscritos" value={form.inscritos} onChange={set("inscritos")} />
+          <CampoNumero label="Participantes totales" value={form.participantes_totales} onChange={set("participantes_totales")} />
+          <CampoNumero label="Respondieron la encuesta" value={form.respuestas_encuesta} onChange={set("respuestas_encuesta")} />
+          <CampoNumero label="Meta de asistentes del acta" value={form.meta_asistencia} onChange={set("meta_asistencia")} />
         </div>
-        <div className="flex flex-col gap-4 border-t border-zinc-800 pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
-          <TituloBloque color="emerald">2. Calendario Editorial</TituloBloque>
-          <div className="grid grid-cols-2 gap-3">
-            <CampoNumero label="Publicaciones planificadas" value={form.publicaciones_planificadas} onChange={set("publicaciones_planificadas")} />
-            <CampoNumero label="Publicaciones realizadas" value={form.publicaciones_realizadas} onChange={set("publicaciones_realizadas")} />
-          </div>
-          <p className="text-xs leading-relaxed text-zinc-500">
-            Las piezas de comunicación con fecha de entrega se registran como compromisos del proyecto correspondiente, con tipo Pieza de comunicación. De ahí se calculan la puntualidad y la anticipación de 72 h.
-          </p>
+        <p className="mb-2 mt-5 text-[10px] uppercase text-zinc-500">Cuántos inscritos se enteraron por cada medio</p>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {FUENTES_CIERRE.map((f) => (
+            <CampoNumero key={f} label={f} value={form.fuentes[f]} onChange={(v) => setForm((x) => ({ ...x, fuentes: { ...x.fuentes, [f]: v } }))} />
+          ))}
         </div>
       </div>
     </ModalRegistro>
@@ -2906,6 +2627,8 @@ export default function CinergiaOS() {
   const [creandoProyecto, setCreandoProyecto] = useState(false);
   const [cierreDe, setCierreDe] = useState(null);
   const [metricasAbiertas, setMetricasAbiertas] = useState(false);
+  const [publicacionAbierta, setPublicacionAbierta] = useState({ abierto: false, publicacion: null });
+  const [instagramAbierto, setInstagramAbierto] = useState(false);
   const [credencialesAbiertas, setCredencialesAbiertas] = useState(false);
   const [configAbierta, setConfigAbierta] = useState(false);
   const [accesosAbiertos, setAccesosAbiertos] = useState(false);
@@ -2919,6 +2642,7 @@ export default function CinergiaOS() {
 
   const [datos, setDatos] = useState({
     proyectos: [], compromisos: [], historial: [], cierres: [], marketing: [], umbrales: [], usuarios: [],
+    publicaciones: [], instagramDiario: [], instagramConexion: null,
   });
   const [errorDatos, setErrorDatos] = useState("");
 
@@ -2959,10 +2683,14 @@ export default function CinergiaOS() {
       supabase.from("metricas_marketing").select("*").order("periodo", { ascending: true }),
       supabase.from("kpi_umbrales").select("*"),
       supabase.from("usuarios_directiva").select("*").order("nombre", { ascending: true }),
+      supabase.from("publicaciones").select("*").order("fecha_publicacion", { ascending: false, nullsFirst: false }).limit(500),
+      supabase.from("instagram_diario").select("*").order("fecha", { ascending: false }).limit(180),
+      supabase.from("instagram_conexion").select("*").eq("id", 1).maybeSingle(),
     ]);
     const fallida = consultas.find((c) => c.error);
     setErrorDatos(fallida ? `No se pudieron cargar todos los datos: ${fallida.error.message}` : "");
-    const [proyectos, compromisos, historial, cierres, marketing, umbrales, usuarios] = consultas.map((c) => c.data || []);
+    const [proyectos, compromisos, historial, cierres, marketing, umbrales, usuarios, publicaciones, instagramDiario] = consultas.map((c) => c.data || []);
+    const instagramConexion = consultas[9].data || null;
     setDatos({
       proyectos: proyectos.map((p) => ({
         ...p,
@@ -2970,6 +2698,7 @@ export default function CinergiaOS() {
         fecha: p.fecha_programada ? formatoFechaCorta(p.fecha_programada) : p.fecha,
       })),
       compromisos, historial, cierres, marketing, umbrales, usuarios,
+      publicaciones, instagramDiario, instagramConexion,
     });
   }, []);
 
@@ -2984,7 +2713,10 @@ export default function CinergiaOS() {
 
   const tablero = useMemo(
     () => calcularTablero(
-      { proyectos: datos.proyectos, compromisos: datos.compromisos, historial: datos.historial, cierres: datos.cierres, marketing: datos.marketing },
+      {
+        proyectos: datos.proyectos, compromisos: datos.compromisos, historial: datos.historial, cierres: datos.cierres,
+        marketing: combinarMetricasMensuales(datos.marketing, datos.instagramDiario, datos.publicaciones),
+      },
       datos.umbrales
     ),
     [datos]
@@ -3053,7 +2785,17 @@ export default function CinergiaOS() {
           {vistaActiva === "portafolio" && <VistaPortafolio query={query} onVerActa={abrirActa} onAgregarProyecto={() => setCreandoProyecto(true)} datosProyectos={datos.proyectos} puedeEditar={puedeEditar} />}
           {vistaActiva === "calendario" && <VistaCalendario onVerActa={abrirActa} proyectos={datos.proyectos} />}
           {vistaActiva === "analitica-proyectos" && <VistaAnaliticaProyectos tablero={tablero} />}
-          {vistaActiva === "analitica-marketing" && <VistaAnaliticaMarketing tablero={tablero} puedeEditar={puedeEditar} onRegistrarMetricas={() => setMetricasAbiertas(true)} />}
+          {vistaActiva === "analitica-marketing" && (
+            <VistaAnaliticaMarketing
+              datos={datos}
+              puedeEditar={puedeEditar}
+              esSuperadmin={perfil?.rol === "SuperAdmin"}
+              onRecargar={fetchData}
+              onPublicacion={(publicacion) => setPublicacionAbierta({ abierto: true, publicacion })}
+              onMetricas={() => setMetricasAbiertas(true)}
+              onInstagram={() => setInstagramAbierto(true)}
+            />
+          )}
         </main>
       </div>
 
@@ -3077,6 +2819,22 @@ export default function CinergiaOS() {
         onGuardado={fetchData}
       />
       <MetricasMarketingModal key={metricasAbiertas ? "metricas-abierto" : "metricas-cerrado"} abierto={metricasAbiertas} onClose={() => setMetricasAbiertas(false)} onGuardado={fetchData} registros={datos.marketing} />
+      <PublicacionModal
+        key={publicacionAbierta.abierto ? `pub-${publicacionAbierta.publicacion?.id || "nueva"}` : "pub-cerrada"}
+        abierto={publicacionAbierta.abierto}
+        publicacion={publicacionAbierta.publicacion}
+        proyectos={datos.proyectos}
+        instagramConectada={!!datos.instagramConexion?.conectada}
+        onClose={() => setPublicacionAbierta({ abierto: false, publicacion: null })}
+        onGuardado={fetchData}
+      />
+      <InstagramModal
+        key={instagramAbierto ? "ig-abierto" : "ig-cerrado"}
+        abierto={instagramAbierto}
+        conexion={datos.instagramConexion}
+        onClose={() => setInstagramAbierto(false)}
+        onCambio={fetchData}
+      />
       <ModalCredenciales abierto={credencialesAbiertas} perfil={perfil} onClose={() => setCredencialesAbiertas(false)} onListo={cargarPerfil} />
 
       <ConfiguracionDrawer

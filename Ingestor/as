@@ -1,0 +1,231 @@
+/*
+Archivo: registroProveedor.jsp
+*/
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Proveedor</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Registro de Proveedor</h1>
+            <p>Andes Fresh S.A.C.</p>
+        </div>
+
+        <div class="form-wrap">
+            <form action="#" method="post">
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="ruc">RUC</label>
+                        <input id="ruc" name="ruc" type="text" placeholder="Ingrese el RUC" required>
+                    </div>
+
+                    <div class="field">
+                        <label for="categoria">Categoría</label>
+                        <select id="categoria" name="categoria" required>
+                            <option value="">Seleccione una categoría</option>
+                            <option value="frutas">Frutas</option>
+                            <option value="verduras">Verduras</option>
+                            <option value="lacteos">Lácteos</option>
+                            <option value="carnes">Carnes</option>
+                            <option value="insumos">Insumos</option>
+                        </select>
+                    </div>
+
+                    <div class="field full">
+                        <label for="razonSocial">Razón social</label>
+                        <input id="razonSocial" name="razonSocial" type="text" placeholder="Ingrese la razón social" required>
+                    </div>
+
+                    <div class="field full">
+                        <label for="correo">Correo del proveedor</label>
+                        <input id="correo" name="correo" type="email" placeholder="ejemplo@correo.com" required>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="reset" class="btn btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar proveedor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+
+/*
+Archivo: styles.css
+*/
+:root {
+    --primary: #1f7a5b;
+    --primary-dark: #155a42;
+    --primary-soft: #eaf7f1;
+    --secondary: #f4f8f5;
+    --border: #dfe7e1;
+    --text: #1d2a27;
+    --muted: #5c6a67;
+    --white: #ffffff;
+    --shadow: 0 12px 32px rgba(31, 122, 91, 0.15);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+    font-family: Arial, Helvetica, sans-serif;
+    background: linear-gradient(135deg, var(--primary-soft) 0%, #f7faf8 100%);
+    color: var(--text);
+}
+
+.container {
+    width: 100%;
+    max-width: 900px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.header {
+    background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+    padding: 30px 32px;
+    text-align: center;
+    color: var(--white);
+}
+
+.header h1 {
+    margin: 0;
+    font-size: clamp(1.8rem, 2.5vw, 2.4rem);
+    letter-spacing: 0.5px;
+}
+
+.header p {
+    margin: 10px 0 0;
+    font-size: 0.95rem;
+    opacity: 0.9;
+}
+
+.form-wrap {
+    padding: 32px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+    gap: 22px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.field.full {
+    grid-column: 1 / -1;
+}
+
+label {
+    font-size: 0.96rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+input,
+select {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 1rem;
+    color: var(--text);
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+input::placeholder {
+    color: #7d8e89;
+}
+
+input:focus,
+select:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: var(--white);
+    box-shadow: 0 0 0 4px rgba(31, 122, 91, 0.12);
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 14px;
+    margin-top: 30px;
+}
+
+.btn {
+    border: none;
+    border-radius: 12px;
+    padding: 12px 22px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: var(--white);
+    box-shadow: 0 10px 20px rgba(31, 122, 91, 0.18);
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+}
+
+.btn-secondary {
+    background: #edf2ef;
+    color: var(--text);
+}
+
+.btn-secondary:hover {
+    background: #e2e9e5;
+}
+
+@media (max-width: 700px) {
+    .form-wrap {
+        padding: 22px 18px;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .header {
+        padding: 24px 20px;
+    }
+
+    .actions {
+        flex-direction: column-reverse;
+    }
+
+    .btn {
+        width: 100%;
+    }
+}

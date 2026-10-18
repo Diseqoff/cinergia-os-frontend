@@ -1,7 +1,10 @@
 import hashlib
+import hmac
 import io
 import os
 import re
+import sys
+import threading
 import unicodedata
 import uuid
 from datetime import date, datetime, timedelta, timezone
@@ -9,17 +12,20 @@ from pathlib import Path
 
 from docx import Document
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from supabase import Client, create_client
 
-from cuentas import ErrorCuenta, actualizar_cuenta, crear_cuenta, restablecer_credenciales
+BASE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(BASE_DIR))
+
+import instagram  # noqa: E402
+from cuentas import ErrorCuenta, actualizar_cuenta, crear_cuenta, restablecer_credenciales  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Configuración
 # ---------------------------------------------------------------------------
-BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / "credenciales.env")
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -377,6 +383,78 @@ def restablecer_usuario(usuario_id: str, perfil: dict = Depends(requiere_superad
     except ErrorCuenta as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"status": "success"}
+
+
+# ---------------------------------------------------------------------------
+# Instagram
+# ---------------------------------------------------------------------------
+CRON_SECRET = os.environ.get("CRON_SECRET", "")
+LARGO_MINIMO_CRON_SECRET = 20
+INTERVALO_MINIMO_MANUAL = timedelta(minutes=5)
+_candado_instagram = threading.Lock()
+
+
+class TokenInstagram(BaseModel):
+    access_token: str
+
+
+def _sincronizar_con_candado() -> dict:
+    """Ejecuta la sincronización; los fallos quedan guardados en el estado de la conexión."""
+    with _candado_instagram:
+        return instagram.sincronizar(supabase).como_dict()
+
+
+def _sincronizar_en_segundo_plano() -> None:
+    try:
+        _sincronizar_con_candado()
+    except instagram.ErrorInstagram:
+        pass  # el mensaje ya quedó en instagram_conexion.ultimo_error
+
+
+@app.post("/api/instagram/token")
+def conectar_instagram(datos: TokenInstagram, perfil: dict = Depends(requiere_superadmin)):
+    try:
+        resumen = instagram.conectar(supabase, datos.access_token, perfil["id"])
+    except instagram.ErrorInstagram as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"status": "success", "data": resumen}
+
+
+@app.delete("/api/instagram/token")
+def desconectar_instagram(perfil: dict = Depends(requiere_superadmin)):
+    instagram.desconectar(supabase)
+    return {"status": "success"}
+
+
+@app.post("/api/instagram/sincronizar", status_code=202)
+def sincronizar_instagram(tareas: BackgroundTasks, perfil: dict = Depends(requiere_editor)):
+    """Inicia la actualización y responde enseguida. El avance se lee en instagram_conexion."""
+    filas = supabase.table("instagram_conexion").select("ultimo_intento, conectada").eq("id", 1).limit(1).execute().data
+    estado = filas[0] if filas else {}
+    if not estado.get("conectada"):
+        raise HTTPException(status_code=409, detail="Instagram no está conectado. Un SuperAdmin debe cargar el token.")
+    previo = instagram.parsear_fecha_iso(estado.get("ultimo_intento"))
+    if previo and datetime.now(timezone.utc) - previo < INTERVALO_MINIMO_MANUAL:
+        raise HTTPException(status_code=429, detail="Instagram se actualizó hace menos de 5 minutos. Espera un momento.")
+    if _candado_instagram.locked():
+        raise HTTPException(status_code=409, detail="Ya hay una actualización en curso.")
+    instagram.registrar_intento(supabase)
+    tareas.add_task(_sincronizar_en_segundo_plano)
+    return {"status": "started"}
+
+
+@app.post("/api/instagram/cron")
+def sincronizar_programado(x_cron_secret: str | None = Header(None)):
+    if len(CRON_SECRET) < LARGO_MINIMO_CRON_SECRET:
+        raise HTTPException(status_code=503, detail="La sincronización programada no está habilitada.")
+    if not x_cron_secret or not hmac.compare_digest(x_cron_secret.encode("utf-8"), CRON_SECRET.encode("utf-8")):
+        raise HTTPException(status_code=401, detail="Clave no válida.")
+    if _candado_instagram.locked():
+        raise HTTPException(status_code=409, detail="Ya hay una actualización en curso.")
+    try:
+        return {"status": "success", "data": _sincronizar_con_candado()}
+    except instagram.ErrorInstagram as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 if __name__ == "__main__":
